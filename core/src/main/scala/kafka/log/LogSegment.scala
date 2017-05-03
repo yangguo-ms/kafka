@@ -230,6 +230,14 @@ class LogSegment(val log: FileMessageSet,
     } catch {
       case e: CorruptRecordException =>
         logger.warn("Found invalid messages in log segment %s at byte offset %d: %s.".format(log.file.getAbsolutePath, validBytes, e.getMessage))
+      case e2: IOException => {
+        logger.warn("Encountered IOException %s while reading file %s. File must be deleted as it might not be recoverable.".format(e2.getMessage, log.file.getAbsolutePath))
+        validBytes = 0
+      }
+      case e3: InvalidOffsetException => {
+        logger.warn("Encountered InvalidOffsetException %s while reading file %s. File must be deleted as it might not be recoverable.".format(e3.getMessage, log.file.getAbsolutePath))
+        validBytes = 0
+      }
     }
     val truncated = log.sizeInBytes - validBytes
     log.truncateTo(validBytes)
