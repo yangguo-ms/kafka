@@ -202,6 +202,11 @@ public class DefaultRecordBatch extends AbstractRecordBatch implements MutableRe
         return buffer.getInt(PARTITION_LEADER_EPOCH_OFFSET);
     }
 
+    private Iterator<Record> compressedIterator(BufferSupplier bufferSupplier) {
+        // No needed right now
+        return null;
+    }
+
     private Iterator<Record> compressedIterator() {
         ByteBuffer buffer = this.buffer.duplicate();
         buffer.position(RECORDS_OFFSET);
@@ -268,6 +273,14 @@ public class DefaultRecordBatch extends AbstractRecordBatch implements MutableRe
     public Iterator<Record> iterator() {
         if (isCompressed())
             return compressedIterator();
+        else
+            return uncompressedIterator();
+    }
+
+    @Override
+    public Iterator<Record> streamingIterator(BufferSupplier bufferSupplier) {
+        if (isCompressed())
+            return compressedIterator(bufferSupplier);
         else
             return uncompressedIterator();
     }
