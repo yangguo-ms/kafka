@@ -17,6 +17,7 @@
 package kafka.server
 
 import java.io.{File, IOException}
+import java.nio.charset.StandardCharsets
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 
@@ -701,6 +702,32 @@ class ReplicaManager(val config: KafkaConfig,
             var valueByteArray = Utils.toArray(record.key());
             for( a <- 0 to (valueByteArray.length - 1)) {
               println("********************************** record.key() = %d ************************".format(valueByteArray(a)));
+            }
+          }
+        }
+
+        while (batchs.hasNext()) {
+          println("********************************** batchs.hasNext() ************************");
+          var currentBatch = batchs.next();
+          var records = currentBatch.streamingIterator(decompressionBufferSupplier);
+          while (records.hasNext()) {
+            println("********************************** record.hasNext() ************************");
+            var record = records.next();
+            var valueByteArray = Utils.toArray(record.key());
+            for (a <- 0 to (valueByteArray.length - 1)) {
+              println("********************************** record.key() = %d ************************".format(valueByteArray(a)));
+            }
+
+            var key = new String(valueByteArray, StandardCharsets.UTF_8);
+            println("********************************** record.key() = %s ************************".format(key));
+
+            if (eventPattern != null) {
+              println("***************************event pattern not equal to null*******************************");
+              var eventPatternRegex = eventPattern.r;
+              var records = logReadInfo.records.batches().iterator();
+              if (!eventPatternRegex.findFirstIn(key.toString).isDefined) {
+                records.remove();
+              }
             }
           }
         }
