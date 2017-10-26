@@ -726,7 +726,7 @@ class ReplicaManager(val config: KafkaConfig,
               var eventPatternRegex = eventPattern.r;
               var records = logReadInfo.records.batches().iterator();
               if (!eventPatternRegex.findFirstIn(key.toString).isDefined) {
-                records.remove();
+                records.removes(record.sizeInBytes());
               }
             }
           }
