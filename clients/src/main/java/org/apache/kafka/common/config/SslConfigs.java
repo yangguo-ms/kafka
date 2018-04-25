@@ -89,7 +89,7 @@ public class SslConfigs {
     public static final String SSL_SECURE_RANDOM_IMPLEMENTATION_DOC = "The SecureRandom PRNG implementation to use for SSL cryptography operations. ";
 
     public static final String SSL_APPKI_PROVIDER_CLASS_CONFIG = "ssl.appki.provider.class";
-    public static final String SSL_APPKI_PROVIDER_CLASS__DOC = "Azure AP PKI infrastructure. ";
+    public static final String SSL_APPKI_PROVIDER_CLASS_DOC = "Azure AP PKI infrastructure. ";
 
     public static final String SSL_CLIENT_AUTH_CONFIG = "ssl.client.auth";
     public static final String SSL_CLIENT_AUTH_DOC = "Configures kafka broker to request client authentication."
@@ -116,7 +116,7 @@ public class SslConfigs {
                 .define(SslConfigs.SSL_KEYMANAGER_ALGORITHM_CONFIG, ConfigDef.Type.STRING, SslConfigs.DEFAULT_SSL_KEYMANGER_ALGORITHM, ConfigDef.Importance.LOW, SslConfigs.SSL_KEYMANAGER_ALGORITHM_DOC)
                 .define(SslConfigs.SSL_TRUSTMANAGER_ALGORITHM_CONFIG, ConfigDef.Type.STRING, SslConfigs.DEFAULT_SSL_TRUSTMANAGER_ALGORITHM, ConfigDef.Importance.LOW, SslConfigs.SSL_TRUSTMANAGER_ALGORITHM_DOC)
                 .define(SslConfigs.SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG, ConfigDef.Type.STRING, null, ConfigDef.Importance.LOW, SslConfigs.SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_DOC)
-                .define(SslConfigs.SSL_APPKI_PROVIDER_CLASS_CONFIG, ConfigDef.Type.STRING, null, ConfigDef.Importance.LOW, SslConfigs.SSL_APPKI_PROVIDER_CLASS__DOC)
+                .define(SslConfigs.SSL_APPKI_PROVIDER_CLASS_CONFIG, ConfigDef.Type.STRING, null, ConfigDef.Importance.LOW, SslConfigs.SSL_APPKI_PROVIDER_CLASS_DOC)
                 .define(SslConfigs.SSL_SECURE_RANDOM_IMPLEMENTATION_CONFIG, ConfigDef.Type.STRING, null, ConfigDef.Importance.LOW, SslConfigs.SSL_SECURE_RANDOM_IMPLEMENTATION_DOC);
     }
 }
