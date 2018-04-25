@@ -26,7 +26,9 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
+import java.security.Provider;
 import java.security.SecureRandom;
+import java.security.Security;
 import java.util.List;
 import java.util.Map;
 
@@ -56,6 +58,7 @@ public class SslFactory implements Configurable {
     private SSLContext sslContext;
     private boolean needClientAuth;
     private boolean wantClientAuth;
+    private String appkiProvider;
 
     public SslFactory(Mode mode) {
         this(mode, null);
@@ -70,6 +73,7 @@ public class SslFactory implements Configurable {
     public void configure(Map<String, ?> configs) throws KafkaException {
         this.protocol =  (String) configs.get(SslConfigs.SSL_PROTOCOL_CONFIG);
         this.provider = (String) configs.get(SslConfigs.SSL_PROVIDER_CONFIG);
+        this.appkiProvider = (String) configs.get(SslConfigs.SSL_APPKI_PROVIDER_CLASS_CONFIG);
 
         @SuppressWarnings("unchecked")
         List<String> cipherSuitesList = (List<String>) configs.get(SslConfigs.SSL_CIPHER_SUITES_CONFIG);
@@ -122,9 +126,27 @@ public class SslFactory implements Configurable {
         }
     }
 
+    /*
+    Method to load third party java security provider.
+    ** Not equivalent to SSL.Provider config which expects a full ssl protocol implementation
+     */
+    private void loadThirdPartyProviders(){
+        if(appkiProvider != null){
+            try {
+                Security.addProvider((Provider) Class.forName(appkiProvider).newInstance());
+            } catch (InstantiationException e) {
+                throw new KafkaException("Could not instantiate AP PKI provider "+ appkiProvider, e);
+            } catch (IllegalAccessException e) {
+                throw new KafkaException(e);
+            } catch (ClassNotFoundException e) {
+                throw new KafkaException("Could not find AP PKI provider "+ appkiProvider, e);
+            }
+        }
+    }
 
     private SSLContext createSSLContext() throws GeneralSecurityException, IOException  {
         SSLContext sslContext;
+        loadThirdPartyProviders();
         if (provider != null)
             sslContext = SSLContext.getInstance(protocol, provider);
         else
@@ -136,7 +158,7 @@ public class SslFactory implements Configurable {
             KeyManagerFactory kmf = KeyManagerFactory.getInstance(kmfAlgorithm);
             KeyStore ks = keystore.load();
             Password keyPassword = this.keyPassword != null ? this.keyPassword : keystore.password;
-            kmf.init(ks, keyPassword.value().toCharArray());
+            kmf.init(ks, keyPassword == null ? null : keyPassword.value().toCharArray());
             keyManagers = kmf.getKeyManagers();
         }
 
@@ -180,9 +202,9 @@ public class SslFactory implements Configurable {
     private void createKeystore(String type, String path, Password password, Password keyPassword) {
         if (path == null && password != null) {
             throw new KafkaException("SSL key store is not specified, but key store password is specified.");
-        } else if (path != null && password == null) {
+        } else if (path != null && (!type.equalsIgnoreCase("Windows-MY") && password == null)) {
             throw new KafkaException("SSL key store is specified, but key store password is not specified.");
-        } else if (path != null && password != null) {
+        } else if ((path != null && password != null) || type.equalsIgnoreCase("Windows-MY")) {
             this.keystore = new SecurityStore(type, path, password);
             this.keyPassword = keyPassword;
         }
@@ -213,8 +235,14 @@ public class SslFactory implements Configurable {
             FileInputStream in = null;
             try {
                 KeyStore ks = KeyStore.getInstance(type);
-                in = new FileInputStream(path);
-                ks.load(in, password.value().toCharArray());
+                if(type.equalsIgnoreCase("Windows-MY")){
+                    ks.load(null, null);
+                }else {
+                    in = new FileInputStream(path);
+                    // If a password is not set access to the truststore is still available, but integrity checking is disabled.
+                    char[] passwordChars = password != null ? password.value().toCharArray() : null;
+                    ks.load(in, passwordChars);
+                }
                 return ks;
             } finally {
                 if (in != null) in.close();
