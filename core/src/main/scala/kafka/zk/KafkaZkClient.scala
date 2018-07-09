@@ -32,7 +32,7 @@ import kafka.utils.Logging
 import kafka.zookeeper._
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.security.token.delegation.{DelegationToken, TokenInformation}
-import org.apache.kafka.common.utils.Time
+import org.apache.kafka.common.utils.{Time, Utils}
 import org.apache.zookeeper.KeeperException.{Code, NodeExistsException}
 import org.apache.zookeeper.data.{ACL, Stat}
 import org.apache.zookeeper.{CreateMode, KeeperException, ZooKeeper}
@@ -246,6 +246,12 @@ class KafkaZkClient private (zooKeeperClient: ZooKeeperClient, isSecure: Boolean
   /**
    * Sets or creates the entity znode path with the given configs depending
    * on whether it already exists or not.
+   *
+   * If this is method is called concurrently, the last writer wins. In cases where we update configs and then
+   * partition assignment (i.e. create topic), it's possible for one thread to set this and the other to set the
+   * partition assignment. As such, the recommendation is to never call create topic for the same topic with different
+   * configs/partition assignment concurrently.
+   *
    * @param rootEntityType entity type
    * @param sanitizedEntityName entity name
    * @throws KeeperException if there is an error while setting or creating the znode
@@ -257,16 +263,19 @@ class KafkaZkClient private (zooKeeperClient: ZooKeeperClient, isSecure: Boolean
       retryRequestUntilConnected(setDataRequest)
     }
 
-    def create(configData: Array[Byte]) = {
+    def createOrSet(configData: Array[Byte]): Unit = {
       val path = ConfigEntityZNode.path(rootEntityType, sanitizedEntityName)
-      createRecursive(path, ConfigEntityZNode.encode(config))
+      try createRecursive(path, ConfigEntityZNode.encode(config))
+      catch {
+        case _: NodeExistsException => set(configData).maybeThrow
+      }
     }
 
     val configData = ConfigEntityZNode.encode(config)
 
     val setDataResponse = set(configData)
     setDataResponse.resultCode match {
-      case Code.NONODE => create(configData)
+      case Code.NONODE => createOrSet(configData)
       case _ => setDataResponse.maybeThrow
     }
   }
@@ -597,7 +606,7 @@ class KafkaZkClient private (zooKeeperClient: ZooKeeperClient, isSecure: Boolean
     setDataResponse.resultCode match {
       case Code.OK =>
         debug("Conditional update of path %s with value %s and expected version %d succeeded, returning the new version: %d"
-          .format(path, data, expectVersion, setDataResponse.stat.getVersion))
+          .format(path, Utils.utf8(data), expectVersion, setDataResponse.stat.getVersion))
         (true, setDataResponse.stat.getVersion)
 
       case Code.BADVERSION =>
@@ -606,18 +615,18 @@ class KafkaZkClient private (zooKeeperClient: ZooKeeperClient, isSecure: Boolean
           case _ =>
             debug("Checker method is not passed skipping zkData match")
             debug("Conditional update of path %s with data %s and expected version %d failed due to %s"
-              .format(path, data, expectVersion, setDataResponse.resultException.get.getMessage))
+              .format(path, Utils.utf8(data), expectVersion, setDataResponse.resultException.get.getMessage))
             (false, ZkVersion.NoVersion)
         }
 
       case Code.NONODE =>
-        debug("Conditional update of path %s with data %s and expected version %d failed due to %s".format(path, data,
-          expectVersion, setDataResponse.resultException.get.getMessage))
+        debug("Conditional update of path %s with data %s and expected version %d failed due to %s".format(path,
+          Utils.utf8(data), expectVersion, setDataResponse.resultException.get.getMessage))
         (false, ZkVersion.NoVersion)
 
       case _ =>
-        debug("Conditional update of path %s with data %s and expected version %d failed due to %s".format(path, data,
-          expectVersion, setDataResponse.resultException.get.getMessage))
+        debug("Conditional update of path %s with data %s and expected version %d failed due to %s".format(path,
+          Utils.utf8(data), expectVersion, setDataResponse.resultException.get.getMessage))
         throw setDataResponse.resultException.get
     }
   }

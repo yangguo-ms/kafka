@@ -27,6 +27,7 @@ import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.kafka.common.utils.Bytes;
 import org.apache.kafka.common.utils.SystemTime;
+import org.apache.kafka.streams.kstream.Materialized;
 import org.apache.kafka.streams.processor.Processor;
 import org.apache.kafka.streams.processor.ProcessorContext;
 import org.apache.kafka.streams.processor.ProcessorSupplier;
@@ -42,8 +43,11 @@ import org.apache.kafka.test.TestUtils;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -60,6 +64,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+@RunWith(value = Parameterized.class)
 public class TopologyTestDriverTest {
     private final static String SOURCE_TOPIC_1 = "source-topic-1";
     private final static String SOURCE_TOPIC_2 = "source-topic-2";
@@ -96,6 +101,23 @@ public class TopologyTestDriverTest {
         new StringSerializer(),
         new LongSerializer());
 
+    private final boolean eosEnabled;
+
+    @Parameterized.Parameters(name = "Eos enabled = {0}")
+    public static Collection<Object[]> data() {
+        final List<Object[]> values = new ArrayList<>();
+        for (final boolean eosEnabled : Arrays.asList(true, false)) {
+            values.add(new Object[] {eosEnabled});
+        }
+        return values;
+    }
+
+    public TopologyTestDriverTest(final boolean eosEnabled) {
+        this.eosEnabled = eosEnabled;
+        if (eosEnabled) {
+            config.put(StreamsConfig.PROCESSING_GUARANTEE_CONFIG, StreamsConfig.EXACTLY_ONCE);
+        }
+    }
 
     private final static class Record {
         private Object key;
@@ -343,6 +365,8 @@ public class TopologyTestDriverTest {
 
         testDriver.close();
         assertTrue(mockProcessors.get(0).closed);
+        // As testDriver is already closed, bypassing @After tearDown testDriver.close().
+        testDriver = null;
     }
 
     @Test
@@ -583,6 +607,10 @@ public class TopologyTestDriverTest {
     @Test
     public void shouldPopulateGlobalStore() {
         testDriver = new TopologyTestDriver(setupGlobalStoreTopology(SOURCE_TOPIC_1), config);
+
+        final KeyValueStore<byte[], byte[]> globalStore = testDriver.getKeyValueStore(SOURCE_TOPIC_1 + "-globalStore");
+        Assert.assertNotNull(globalStore);
+        Assert.assertNotNull(testDriver.getAllStateStores().get(SOURCE_TOPIC_1 + "-globalStore"));
 
         testDriver.pipeInput(consumerRecord1);
 
@@ -895,6 +923,23 @@ public class TopologyTestDriverTest {
                 "Closing the prior test driver should have cleaned up this store and value.",
                 testDriver.getKeyValueStore("storeProcessorStore").get("a")
             );
+        }
+    }
+    
+    @Test
+    public void shouldFeedStoreFromGlobalKTable() {
+        final StreamsBuilder builder = new StreamsBuilder();
+        builder.globalTable("topic",  
+            Consumed.with(Serdes.String(), Serdes.String()),
+            Materialized.<String, String, KeyValueStore<Bytes, byte[]>>as("globalStore"));
+        try (final TopologyTestDriver testDriver = new TopologyTestDriver(builder.build(), config)) {
+            final KeyValueStore<String, String> globalStore = testDriver.getKeyValueStore("globalStore");
+            Assert.assertNotNull(globalStore);
+            Assert.assertNotNull(testDriver.getAllStateStores().get("globalStore"));
+            final ConsumerRecordFactory<String, String> recordFactory = new ConsumerRecordFactory<>(new StringSerializer(), new StringSerializer());
+            testDriver.pipeInput(recordFactory.create("topic", "k1", "value1"));
+            // we expect to have both in the global store, the one from pipeInput and the one from the producer
+            Assert.assertEquals("value1", globalStore.get("k1"));
         }
     }
 }

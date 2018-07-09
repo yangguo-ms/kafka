@@ -28,7 +28,7 @@ buildscript {
     classpath 'com.github.ben-manes:gradle-versions-plugin:0.17.0'
     classpath 'org.scoverage:gradle-scoverage:2.1.0'
     classpath 'com.github.jengelman.gradle.plugins:shadow:2.0.2'
-    classpath 'org.owasp:dependency-check-gradle:3.0.2'
+    classpath 'org.owasp:dependency-check-gradle:3.1.1'
   }
 }
 
@@ -41,7 +41,6 @@ allprojects {
   }
   
   apply plugin: 'idea'
-  apply plugin: "jacoco"
   apply plugin: 'org.owasp.dependencycheck'
   apply plugin: 'com.github.ben-manes.versions'
 
@@ -79,7 +78,7 @@ allprojects {
 }
 
 ext {
-  gradleVersion = "4.5.1"
+  gradleVersion = "4.8.1"
   buildVersionFileName = "kafka-version.properties"
 
   maxPermSizeArgs = []
@@ -384,9 +383,10 @@ subprojects {
 
   // Ignore core since its a scala project
   if (it.path != ':core') {
+    apply plugin: "jacoco"
 
     jacoco {
-      toolVersion = "0.8.0"
+      toolVersion = "0.8.1"
     }
 
     // NOTE: Jacoco Gradle plugin does not support "offline instrumentation" this means that classes mocked by PowerMock
@@ -591,8 +591,7 @@ project(':core') {
     scoverage libs.scoveragePlugin
     scoverage libs.scoverageRuntime
   }
-
-  jacocoTestReport.enabled = false
+  
   scoverage {
     reportDir = file("${rootProject.buildDir}/scoverage")
     highlighting = false
@@ -874,6 +873,8 @@ project(':tools') {
 
     compile libs.jacksonJaxrsJsonProvider
     compile libs.jerseyContainerServlet
+    compile libs.jaxbApi // Jersey dependency that was available in the JDK before Java 9
+    compile libs.activation // Jersey dependency that was available in the JDK before Java 9
     compile libs.jettyServer
     compile libs.jettyServlet
     compile libs.jettyServlets
@@ -1016,6 +1017,66 @@ project(':streams:examples') {
 
   jar {
     dependsOn 'copyDependantLibs'
+  }
+}
+
+project(':streams:upgrade-system-tests-0100') {
+  archivesBaseName = "kafka-streams-upgrade-system-tests-0100"
+
+  dependencies {
+    testCompile libs.kafkaStreams_0100
+  }
+
+  systemTestLibs {
+    dependsOn testJar
+  }
+}
+
+project(':streams:upgrade-system-tests-0101') {
+  archivesBaseName = "kafka-streams-upgrade-system-tests-0101"
+
+  dependencies {
+    testCompile libs.kafkaStreams_0101
+  }
+
+  systemTestLibs {
+    dependsOn testJar
+  }
+}
+
+project(':streams:upgrade-system-tests-0102') {
+  archivesBaseName = "kafka-streams-upgrade-system-tests-0102"
+
+  dependencies {
+    testCompile libs.kafkaStreams_0102
+  }
+
+  systemTestLibs {
+    dependsOn testJar
+  }
+}
+
+project(':streams:upgrade-system-tests-0110') {
+  archivesBaseName = "kafka-streams-upgrade-system-tests-0110"
+
+  dependencies {
+    testCompile libs.kafkaStreams_0110
+  }
+
+  systemTestLibs {
+    dependsOn testJar
+  }
+}
+
+project(':streams:upgrade-system-tests-10') {
+  archivesBaseName = "kafka-streams-upgrade-system-tests-10"
+
+  dependencies {
+    testCompile libs.kafkaStreams_10
+  }
+
+  systemTestLibs {
+    dependsOn testJar
   }
 }
 
@@ -1203,6 +1264,8 @@ project(':connect:runtime') {
 
     compile libs.jacksonJaxrsJsonProvider
     compile libs.jerseyContainerServlet
+    compile libs.jaxbApi // Jersey dependency that was available in the JDK before Java 9
+    compile libs.activation // Jersey dependency that was available in the JDK before Java 9
     compile libs.jettyServer
     compile libs.jettyServlet
     compile libs.jettyServlets

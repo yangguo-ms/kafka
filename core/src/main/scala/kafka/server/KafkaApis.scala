@@ -659,6 +659,8 @@ class KafkaApis(val requestChannel: RequestChannel,
     override def remove() = throw new UnsupportedOperationException()
   }
 
+  // Traffic from both in-sync and out of sync replicas are accounted for in replication quota to ensure total replication
+  // traffic doesn't exceed quota.
   private def sizeOfThrottledPartitions(versionId: Short,
                                         unconvertedResponse: FetchResponse,
                                         quota: ReplicationQuotaManager): Int = {
@@ -1623,7 +1625,7 @@ class KafkaApis(val requestChannel: RequestChannel,
         // as soon as the end transaction marker has been written for a transactional offset commit,
         // call to the group coordinator to materialize the offsets into the cache
         try {
-          groupCoordinator.handleTxnCompletion(producerId, successfulOffsetsPartitions, result)
+          groupCoordinator.scheduleHandleTxnCompletion(producerId, successfulOffsetsPartitions, result)
         } catch {
           case e: Exception =>
             error(s"Received an exception while trying to update the offsets cache on transaction marker append", e)
