@@ -38,6 +38,9 @@ allprojects {
 
   repositories {
     mavenCentral()
+    flatDir{
+      dirs 'repository'
+    }
   }
   
   apply plugin: 'idea'
@@ -550,7 +553,9 @@ project(':core') {
 
   dependencies {
     compile project(':clients')
+    compile files('../repository/ApSdk4j.jar')
     compile libs.jacksonDatabind
+    compile libs.jni4net
     compile libs.joptSimple
     compile libs.metrics
     compile libs.scalaLibrary
