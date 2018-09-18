@@ -38,8 +38,10 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
+import java.security.Provider;
 import java.security.Principal;
 import java.security.SecureRandom;
+import java.security.Security;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
@@ -71,6 +73,7 @@ public class SslFactory implements Reconfigurable {
     private SSLContext sslContext;
     private boolean needClientAuth;
     private boolean wantClientAuth;
+	private String appkiProvider;
 
     public SslFactory(Mode mode) {
         this(mode, null, false);
@@ -86,6 +89,7 @@ public class SslFactory implements Reconfigurable {
     public void configure(Map<String, ?> configs) throws KafkaException {
         this.protocol =  (String) configs.get(SslConfigs.SSL_PROTOCOL_CONFIG);
         this.provider = (String) configs.get(SslConfigs.SSL_PROVIDER_CONFIG);
+		this.appkiProvider = (String) configs.get(SslConfigs.SSL_APPKI_PROVIDER_CLASS_CONFIG);
 
         @SuppressWarnings("unchecked")
         List<String> cipherSuitesList = (List<String>) configs.get(SslConfigs.SSL_CIPHER_SUITES_CONFIG);
@@ -167,6 +171,24 @@ public class SslFactory implements Reconfigurable {
         }
     }
 
+	/*
+    Method to load third party java security provider.
+    ** Not equivalent to SSL.Provider config which expects a full ssl protocol implementation
+     */
+    private void loadThirdPartyProviders(){
+        if(appkiProvider != null){
+            try {
+                Security.addProvider((Provider) Class.forName(appkiProvider).newInstance());
+            } catch (InstantiationException e) {
+                throw new KafkaException("Could not instantiate AP PKI provider "+ appkiProvider, e);
+            } catch (IllegalAccessException e) {
+                throw new KafkaException(e);
+            } catch (ClassNotFoundException e) {
+                throw new KafkaException("Could not find AP PKI provider "+ appkiProvider, e);
+            }
+        }
+    }
+	
     private SecurityStore maybeCreateNewKeystore(Map<String, ?> configs) {
         boolean keystoreChanged = Objects.equals(configs.get(SslConfigs.SSL_KEYSTORE_TYPE_CONFIG), keystore.type) ||
                 Objects.equals(configs.get(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG), keystore.path) ||
@@ -185,6 +207,8 @@ public class SslFactory implements Reconfigurable {
     // package access for testing
     SSLContext createSSLContext(SecurityStore keystore) throws GeneralSecurityException, IOException  {
         SSLContext sslContext;
+		loadThirdPartyProviders();
+		
         if (provider != null)
             sslContext = SSLContext.getInstance(protocol, provider);
         else
@@ -196,7 +220,7 @@ public class SslFactory implements Reconfigurable {
             KeyManagerFactory kmf = KeyManagerFactory.getInstance(kmfAlgorithm);
             KeyStore ks = keystore.load();
             Password keyPassword = keystore.keyPassword != null ? keystore.keyPassword : keystore.password;
-            kmf.init(ks, keyPassword.value().toCharArray());
+            kmf.init(ks, keyPassword == null ? null : keyPassword.value().toCharArray());
             keyManagers = kmf.getKeyManagers();
         }
 
@@ -255,9 +279,9 @@ public class SslFactory implements Reconfigurable {
     private SecurityStore createKeystore(String type, String path, Password password, Password keyPassword) {
         if (path == null && password != null) {
             throw new KafkaException("SSL key store is not specified, but key store password is specified.");
-        } else if (path != null && password == null) {
+        } else if (path != null && (!type.equalsIgnoreCase("Windows-MY") && password == null)) {
             throw new KafkaException("SSL key store is specified, but key store password is not specified.");
-        } else if (path != null && password != null) {
+        } else if ((path != null && password != null) || type.equalsIgnoreCase("Windows-MY")) {
             return new SecurityStore(type, path, password, keyPassword);
         } else
             return null; // path == null, clients may use this path with brokers that don't require client auth
@@ -296,9 +320,13 @@ public class SslFactory implements Reconfigurable {
         KeyStore load() {
             try (FileInputStream in = new FileInputStream(path)) {
                 KeyStore ks = KeyStore.getInstance(type);
-                // If a password is not set access to the truststore is still available, but integrity checking is disabled.
-                char[] passwordChars = password != null ? password.value().toCharArray() : null;
-                ks.load(in, passwordChars);
+				if(type.equalsIgnoreCase("Windows-MY")){
+                    ks.load(null, null);
+                }else{
+					// If a password is not set access to the truststore is still available, but integrity checking is disabled.
+					char[] passwordChars = password != null ? password.value().toCharArray() : null;
+					ks.load(in, passwordChars);
+				}
                 return ks;
             } catch (GeneralSecurityException | IOException e) {
                 throw new KafkaException("Failed to load SSL keystore " + path + " of type " + type, e);
