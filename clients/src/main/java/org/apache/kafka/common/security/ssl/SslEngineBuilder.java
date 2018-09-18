@@ -22,6 +22,7 @@ import org.apache.kafka.common.config.SslConfigs;
 import org.apache.kafka.common.config.internals.BrokerSecurityConfigs;
 import org.apache.kafka.common.network.Mode;
 import org.apache.kafka.common.config.types.Password;
+import org.apache.kafka.common.utils.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,7 +38,9 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
+import java.security.Provider;
 import java.security.SecureRandom;
+import java.security.Security;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
@@ -60,12 +63,14 @@ public class SslEngineBuilder {
     private final SecureRandom secureRandomImplementation;
     private final SSLContext sslContext;
     private final SslClientAuth sslClientAuth;
+    private final String appkiProvider;
 
     @SuppressWarnings("unchecked")
     SslEngineBuilder(Map<String, ?> configs) {
         this.configs = Collections.unmodifiableMap(configs);
         this.protocol = (String) configs.get(SslConfigs.SSL_PROTOCOL_CONFIG);
         this.provider = (String) configs.get(SslConfigs.SSL_PROVIDER_CONFIG);
+        this.appkiProvider = (String) configs.get(SslConfigs.SSL_APPKI_PROVIDER_CLASS_CONFIG);
 
         List<String> cipherSuitesList = (List<String>) configs.get(SslConfigs.SSL_CIPHER_SUITES_CONFIG);
         if (cipherSuitesList != null && !cipherSuitesList.isEmpty()) {
@@ -125,9 +130,27 @@ public class SslEngineBuilder {
         }
     }
 
+    /** Method to load third party java security provider.
+     *  Not equivalent to SSL.Provider config which expects a full ssl protocol implementation
+     */
+    private void loadThirdPartyProviders() {
+        if (appkiProvider != null) {
+            try {
+                Security.addProvider((Provider) Class.forName(appkiProvider).newInstance());
+            } catch (InstantiationException e) {
+                throw new KafkaException("Could not instantiate AP PKI provider "+ appkiProvider, e);
+            } catch (IllegalAccessException e) {
+                throw new KafkaException(e);
+            } catch (ClassNotFoundException e) {
+                throw new KafkaException("Could not find AP PKI provider "+ appkiProvider, e);
+            }
+        }
+    }
+
     private SSLContext createSSLContext() {
         try {
             SSLContext sslContext;
+            loadThirdPartyProviders();
             if (provider != null)
                 sslContext = SSLContext.getInstance(protocol, provider);
             else
@@ -141,7 +164,7 @@ public class SslEngineBuilder {
                 if (keystore != null) {
                     KeyStore ks = keystore.load();
                     Password keyPassword = keystore.keyPassword != null ? keystore.keyPassword : keystore.password;
-                    kmf.init(ks, keyPassword.value().toCharArray());
+                    kmf.init(ks, keyPassword == null ? null : keyPassword.value().toCharArray());
                 } else {
                     kmf.init(null, null);
                 }
@@ -164,9 +187,9 @@ public class SslEngineBuilder {
     private static SecurityStore createKeystore(String type, String path, Password password, Password keyPassword) {
         if (path == null && password != null) {
             throw new KafkaException("SSL key store is not specified, but key store password is specified.");
-        } else if (path != null && password == null) {
+        } else if (path != null && (!type.equalsIgnoreCase("Windows-MY") && password == null)) {
             throw new KafkaException("SSL key store is specified, but key store password is not specified.");
-        } else if (path != null && password != null) {
+        } else if ((path != null && password != null) || type.equalsIgnoreCase("Windows-MY")) {
             return new SecurityStore(type, path, password, keyPassword);
         } else
             return null; // path == null, clients may use this path with brokers that don't require client auth
@@ -279,14 +302,25 @@ public class SslEngineBuilder {
          *   using the specified configs (e.g. if the password or keystore type is invalid)
          */
         KeyStore load() {
-            try (InputStream in = Files.newInputStream(Paths.get(path))) {
+            InputStream in = null;
+            try {
                 KeyStore ks = KeyStore.getInstance(type);
-                // If a password is not set access to the truststore is still available, but integrity checking is disabled.
-                char[] passwordChars = password != null ? password.value().toCharArray() : null;
-                ks.load(in, passwordChars);
+                if(type.equalsIgnoreCase("Windows-MY")) {
+                    ks.load(null, null);
+                } else {
+                    in = Files.newInputStream(Paths.get(path));
+                    // If a password is not set access to the truststore is still available, but integrity checking is disabled.
+                    char[] passwordChars = password != null ? password.value().toCharArray() : null;
+                    ks.load(in, passwordChars);
+                }
+
                 return ks;
             } catch (GeneralSecurityException | IOException e) {
                 throw new KafkaException("Failed to load SSL keystore " + path + " of type " + type, e);
+            } finally {
+                if(in != null) {
+                    Utils.closeQuietly(in, path);
+                }
             }
         }
 
