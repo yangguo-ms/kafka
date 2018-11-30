@@ -16,7 +16,7 @@
  */
 package org.apache.kafka.common.security.plain;
 
-import java.io.UnsupportedEncodingException;
+import java.io.*;
 import java.util.Arrays;
 import java.util.Map;
 
@@ -29,6 +29,17 @@ import javax.security.sasl.SaslServerFactory;
 import org.apache.kafka.common.errors.SaslAuthenticationException;
 import org.apache.kafka.common.security.JaasContext;
 import org.apache.kafka.common.security.authenticator.SaslServerCallbackHandler;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.File;
+import net.sf.jni4net.Bridge;
+
+import dstsauthentication.DstsAuthentication;
+import dstsauthentication.AuthenticationResult;
+import dstsauthentication.Claim;
+
 
 /**
  * Simple SaslServer implementation for SASL/PLAIN. In order to make this implementation
@@ -44,9 +55,19 @@ import org.apache.kafka.common.security.authenticator.SaslServerCallbackHandler;
  *
  */
 public class PlainSaslServer implements SaslServer {
+    private static final Logger log = LoggerFactory.getLogger(PlainSaslServer.class);
 
     public static final String PLAIN_MECHANISM = "PLAIN";
     private static final String JAAS_USER_PREFIX = "user_";
+
+    public static final String LIB_PATH = "libs";
+    public static final String NAME_IDENTIFIER="http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier";
+    public static final String DSTS_SERVICEDNSNAME="dsts.serviceDnsName";
+    public static final String DSTS_SERVICENAME="dsts.serviceName";
+    public static final String DSTS_DSTSREALM="dsts.dstsRealm";
+    public static final String DSTS_DSTSDNSNAME="dsts.dstsDnsName";
+    public static final String DSTS_AUTHENTICATION_J4N_LIBRARY = "dsts.authenticationJ4nLibrary";
+    public static final String AUTHENTICATION_STATUS_OK="OK";
 
     private final JaasContext jaasContext;
 
@@ -103,17 +124,64 @@ public class PlainSaslServer implements SaslServer {
 
         String expectedPassword = jaasContext.configEntryOption(JAAS_USER_PREFIX + username,
                 PlainLoginModule.class.getName());
-        if (!password.equals(expectedPassword)) {
-            throw new SaslAuthenticationException("Authentication failed: Invalid username or password");
+
+        if(password.equals(expectedPassword)){
+            this.authorizationId = username;
+            complete = true;
+            return new byte[0];
         }
 
-        if (!authorizationIdFromClient.isEmpty() && !authorizationIdFromClient.equals(username))
-            throw new SaslAuthenticationException("Authentication failed: Client requested an authorization id that is different from username");
+        String j4nLibFilePath = LIB_PATH + "/" + System.getProperty(DSTS_AUTHENTICATION_J4N_LIBRARY);
 
-        this.authorizationId = username;
+        try {
+            Bridge.init(new File(LIB_PATH));
+            Bridge.LoadAndRegisterAssemblyFrom(new java.io.File(j4nLibFilePath));
+            DstsAuthentication authentication = new DstsAuthentication();
+            AuthenticationResult res = authentication.Authenticate(System.getProperty(DSTS_DSTSREALM),
+                    System.getProperty(DSTS_DSTSDNSNAME),
+                    System.getProperty(DSTS_SERVICEDNSNAME),
+                    System.getProperty(DSTS_SERVICENAME),
+                    password);
+            String status = res.getStatus();
+            String errorMessage = res.getErrorMessage();
 
-        complete = true;
-        return new byte[0];
+            if(status.equals(AUTHENTICATION_STATUS_OK)) {
+                for (Claim claim : res.getClaims()) {
+                    if(claim.getClaimType().equals(NAME_IDENTIFIER)){
+                        String clientId = claim.getValue();
+                        if(null != clientId && !clientId.isEmpty()){
+                            log.info("Authorzied Id from SAML token: {}", clientId);
+                            this.authorizationId = clientId;
+                            complete = true;
+                            return new byte[0];
+                        }
+                    }
+                }
+            }
+            String error = String.format("Failed to authenticate token for user: {}, status: {}, error message: {}", username, status, errorMessage);
+            log.error(error);
+            throw new SaslAuthenticationException(error);
+        }
+        catch(FileNotFoundException e) {
+            String error = String.format("Authentication J4n Assembly cannot be found under folder: {}, error message: {}, cause: {}", LIB_PATH, e.getMessage(), e.getCause().getMessage());
+            log.error(error);
+            throw new SaslException(error);
+        }
+        catch(UnsupportedClassVersionError e) {
+            String error = String.format("Class Version not supported error: {}", e.getMessage());
+            log.error(error);
+            throw new SaslException(error);
+        }
+        catch(UnsatisfiedLinkError e) {
+            String error = String.format("JNI error: unsatisfied link error: {}", e.getMessage());
+            log.error(error);
+            throw new SaslException(error);
+        }
+        catch(Exception e){
+            String error = String.format("Unknown exception happened in Saml Authentication Provider: {}, cause: {}", e.getMessage(), e.getCause().getMessage());
+            log.error(error);
+            throw new SaslException(error);
+        }
     }
 
     @Override
@@ -162,7 +230,7 @@ public class PlainSaslServer implements SaslServer {
 
         @Override
         public SaslServer createSaslServer(String mechanism, String protocol, String serverName, Map<String, ?> props, CallbackHandler cbh)
-            throws SaslException {
+                throws SaslException {
 
             if (!PLAIN_MECHANISM.equals(mechanism))
                 throw new SaslException(String.format("Mechanism \'%s\' is not supported. Only PLAIN is supported.", mechanism));
