@@ -33,6 +33,7 @@ import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.TrustManagerFactory;
+
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -74,6 +75,7 @@ public class SslFactory implements Reconfigurable {
     private boolean needClientAuth;
     private boolean wantClientAuth;
 	private String appkiProvider;
+	
 
     public SslFactory(Mode mode) {
         this(mode, null, false);
@@ -318,15 +320,17 @@ public class SslFactory implements Reconfigurable {
          *   using the specified configs (e.g. if the password or keystore type is invalid)
          */
         KeyStore load() {
-            try (FileInputStream in = new FileInputStream(path)) {
+        	FileInputStream in = null;
+        	try {
                 KeyStore ks = KeyStore.getInstance(type);
-				if(type.equalsIgnoreCase("Windows-MY")){
+                if(type.equalsIgnoreCase("Windows-MY")){
                     ks.load(null, null);
                 }else{
-					// If a password is not set access to the truststore is still available, but integrity checking is disabled.
-					char[] passwordChars = password != null ? password.value().toCharArray() : null;
-					ks.load(in, passwordChars);
-				}
+                	in = new FileInputStream(path);
+                	// If a password is not set access to the truststore is still available, but integrity checking is disabled.
+                	char[] passwordChars = password != null ? password.value().toCharArray() : null;
+                	ks.load(in, passwordChars);
+                }
                 return ks;
             } catch (GeneralSecurityException | IOException e) {
                 throw new KafkaException("Failed to load SSL keystore " + path + " of type " + type, e);
