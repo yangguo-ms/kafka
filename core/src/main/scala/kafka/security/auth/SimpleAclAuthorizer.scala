@@ -102,31 +102,16 @@ class SimpleAclAuthorizer extends Authorizer with Logging {
   }
 
   override def authorize(session: Session, operation: Operation, resource: Resource): Boolean = {
-    val principal = session.principal
-    val host = session.clientAddress.getHostAddress
-    val acls = getAcls(resource) ++ getAcls(new Resource(resource.resourceType, Resource.WildCardResource))
-
-    // Check if there is any Deny acl match that would disallow this operation.
-    val denyMatch = aclMatch(operation, resource, principal, host, Deny, acls)
-
-    // Check if there are any Allow ACLs which would allow this operation.
-    // Allowing read, write, delete, or alter implies allowing describe.
-    // See #{org.apache.kafka.common.acl.AclOperation} for more details about ACL inheritance.
-    val allowOps = operation match {
-      case Describe => Set[Operation](Describe, Read, Write, Delete, Alter)
-      case DescribeConfigs => Set[Operation](DescribeConfigs, AlterConfigs)
-      case _ => Set[Operation](operation)
+    resource.resourceType match {
+      case Topic => {
+        val acls = getAcls(resource) ++ getAcls(new Resource(resource.resourceType, Resource.WildCardResource))
+        session.principal.getPrincipalType match {
+          case "User" => aclMatch(operation, resource, session.principal, session.clientAddress.getHostAddress, Allow, acls)
+          case _ => true
+        }
+      }
+      case _ => true
     }
-    val allowMatch = allowOps.exists(operation => aclMatch(operation, resource, principal, host, Allow, acls))
-
-    //we allow an operation if a user is a super user or if no acls are found and user has configured to allow all users
-    //when no acls are found or if no deny acls are found and at least one allow acls matches.
-    val authorized = isSuperUser(operation, resource, principal, host) ||
-      isEmptyAclAndAuthorized(operation, resource, principal, host, acls) ||
-      (!denyMatch && allowMatch)
-
-    logAuditMessage(principal, authorized, operation, resource, host)
-    authorized
   }
 
   def isEmptyAclAndAuthorized(operation: Operation, resource: Resource, principal: KafkaPrincipal, host: String, acls: Set[Acl]): Boolean = {
