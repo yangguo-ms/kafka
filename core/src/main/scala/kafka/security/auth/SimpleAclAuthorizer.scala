@@ -32,7 +32,7 @@ import org.apache.kafka.common.security.auth.KafkaPrincipal
 import org.apache.kafka.common.utils.{SecurityUtils, Time}
 
 import scala.collection.JavaConverters._
-import scala.util.Random
+import scala.util.{Random, Try}
 
 object SimpleAclAuthorizer {
   //optional override zookeeper cluster configuration where acls will be stored, if not specified acls will be stored in
@@ -104,6 +104,8 @@ class SimpleAclAuthorizer extends Authorizer with Logging {
   override def authorize(session: Session, operation: Operation, resource: Resource): Boolean = {
     resource.resourceType match {
       case Topic => {
+        authorizerLogger.info("principal: {}", Try(session.principal.getName).getOrElse("Empty principal name"))
+        authorizerLogger.info("Operation: {}", operation.name)
         val acls = getAcls(resource) ++ getAcls(new Resource(resource.resourceType, Resource.WildCardResource))
         session.principal.getPrincipalType match {
           case "User" => aclMatch(operation, resource, session.principal, session.clientAddress.getHostAddress, Allow, acls)

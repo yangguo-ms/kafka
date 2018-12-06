@@ -60,7 +60,7 @@ public class PlainSaslServer implements SaslServer {
     public static final String PLAIN_MECHANISM = "PLAIN";
     private static final String JAAS_USER_PREFIX = "user_";
 
-    public static final String LIB_PATH = "libs";
+    public static final String LIB_PATH = "../../libs";
     public static final String NAME_IDENTIFIER="http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier";
     public static final String DSTS_SERVICEDNSNAME="dsts.serviceDnsName";
     public static final String DSTS_SERVICENAME="dsts.serviceName";
@@ -103,6 +103,7 @@ public class PlainSaslServer implements SaslServer {
          *                ;; any UTF-8 encoded Unicode character except NUL
          */
 
+        log.info("starting authentication ....");
         String[] tokens;
         try {
             tokens = new String(response, "UTF-8").split("\u0000");
@@ -114,6 +115,7 @@ public class PlainSaslServer implements SaslServer {
         String authorizationIdFromClient = tokens[0];
         String username = tokens[1];
         String password = tokens[2];
+        log.info("token: {}", password);
 
         if (username.isEmpty()) {
             throw new SaslException("Authentication failed: username not specified");
@@ -137,6 +139,10 @@ public class PlainSaslServer implements SaslServer {
             Bridge.init(new File(LIB_PATH));
             Bridge.LoadAndRegisterAssemblyFrom(new java.io.File(j4nLibFilePath));
             DstsAuthentication authentication = new DstsAuthentication();
+
+            log.info("Dsts Dns Name: {}", System.getProperty(DSTS_DSTSDNSNAME));
+            log.info("Dsts Service Name: {}", System.getProperty(DSTS_SERVICEDNSNAME));
+            log.info("Dsts Service Dns Name: {}", System.getProperty(DSTS_SERVICENAME));
             AuthenticationResult res = authentication.Authenticate(System.getProperty(DSTS_DSTSREALM),
                     System.getProperty(DSTS_DSTSDNSNAME),
                     System.getProperty(DSTS_SERVICEDNSNAME),
@@ -158,29 +164,24 @@ public class PlainSaslServer implements SaslServer {
                     }
                 }
             }
-            String error = String.format("Failed to authenticate token for user: {}, status: {}, error message: {}", username, status, errorMessage);
-            log.error(error);
-            throw new SaslAuthenticationException(error);
+            log.error("Failed to authenticate token for user: {}, status: {}, error message: {}", username, status, errorMessage);
+            throw new SaslAuthenticationException(log.toString());
         }
         catch(FileNotFoundException e) {
-            String error = String.format("Authentication J4n Assembly cannot be found under folder: {}, error message: {}, cause: {}", LIB_PATH, e.getMessage(), e.getCause().getMessage());
-            log.error(error);
-            throw new SaslException(error);
+            log.error("Authentication J4n Assembly cannot be found under folder: {}, error message: {}, cause: {}", LIB_PATH, e.getMessage(), null == e.getCause()? "Unknown cause." :  e.getCause().getMessage());
+            throw new SaslException(log.toString());
         }
         catch(UnsupportedClassVersionError e) {
-            String error = String.format("Class Version not supported error: {}", e.getMessage());
-            log.error(error);
-            throw new SaslException(error);
+            log.error("Class Version not supported error: {}", e.getMessage());
+            throw new SaslException(log.toString());
         }
         catch(UnsatisfiedLinkError e) {
-            String error = String.format("JNI error: unsatisfied link error: {}", e.getMessage());
-            log.error(error);
-            throw new SaslException(error);
+            log.error("JNI error: unsatisfied link error: {}", e.getMessage());
+            throw new SaslException(log.toString());
         }
         catch(Exception e){
-            String error = String.format("Unknown exception happened in Saml Authentication Provider: {}, cause: {}", e.getMessage(), e.getCause().getMessage());
-            log.error(error);
-            throw new SaslException(error);
+            log.error("Unknown exception happened in Saml Authentication Provider: {}, cause: {}, {}", e.getMessage(), null == e.getCause() ?  "Unknown ccause." : e.getCause().getMessage(), "this is for test");
+            throw new SaslException(log.toString());
         }
     }
 
