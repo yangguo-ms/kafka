@@ -102,25 +102,19 @@ class SimpleAclAuthorizer extends Authorizer with Logging {
   }
 
   override def authorize(session: Session, operation: Operation, resource: Resource): Boolean = {
+    authorizerLogger.info("principal: {}, Operation: {}", Try(session.principal.getName).getOrElse("Empty principal name"), operation.name)
     resource.resourceType match {
       case Topic => {
-        authorizerLogger.info("principal: {}", Try(session.principal.getName).getOrElse("Empty principal name"))
-        authorizerLogger.info("Operation: {}", operation.name)
         val acls = getAcls(resource) ++ getAcls(new Resource(resource.resourceType, Resource.WildCardResource))
         session.principal.getPrincipalType match {
-          case "User" => {
-            if(session.principal.getName.equals(KafkaPrincipal.ANONYMOUS.getName)) true
-            else{
-              val b: java.lang.Boolean = session.principal.tokenAuthenticated()
-              b.booleanValue() && aclMatch(operation, resource, session.principal, session.clientAddress.getHostAddress, Allow, acls)
-            }
-          }
+          case "User" => aclMatch(operation, resource, session.principal, session.clientAddress.getHostAddress, Allow, acls)
           case _ => true
         }
       }
       case _ => true
     }
   }
+
 
   def isEmptyAclAndAuthorized(operation: Operation, resource: Resource, principal: KafkaPrincipal, host: String, acls: Set[Acl]): Boolean = {
     if (acls.isEmpty) {

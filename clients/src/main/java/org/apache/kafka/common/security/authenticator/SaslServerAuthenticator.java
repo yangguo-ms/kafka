@@ -303,10 +303,6 @@ public class SaslServerAuthenticator implements Authenticator {
             principal.tokenAuthenticated(true);
         }
 
-        if(saslMechanism.equals("PLAIN")){
-            principal.tokenAuthenticated(true);
-        }
-
         return principal;
     }
 
