@@ -39,6 +39,7 @@ import net.sf.jni4net.Bridge;
 import dstsauthentication.DstsAuthentication;
 import dstsauthentication.AuthenticationResult;
 import dstsauthentication.Claim;
+import com.microsoft.autopilot.ApRuntime;
 
 
 /**
@@ -62,6 +63,7 @@ public class PlainSaslServer implements SaslServer {
 
     public static final String LIB_PATH = "../../libs";
     public static final String NAME_IDENTIFIER="http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier";
+    public static final String DEVICE_GROUP="http://sts.msft.net/computer/DeviceGroup";
     public static final String DSTS_SERVICEDNSNAME="dsts.serviceDnsName";
     public static final String DSTS_SERVICENAME="dsts.serviceName";
     public static final String DSTS_DSTSREALM="dsts.dstsRealm";
@@ -73,9 +75,23 @@ public class PlainSaslServer implements SaslServer {
 
     private boolean complete;
     private String authorizationId;
+    private String machineFunction;
+
 
     public PlainSaslServer(JaasContext jaasContext) {
         this.jaasContext = jaasContext;
+
+        if(!ApRuntime.isInitialized()){
+            log.info("Initializing AP Runtime ...");
+            ApRuntime.initialize();
+        }
+        try{
+            machineFunction = String.format("%s.%s.%s", ApRuntime.GetMachineFunction(), ApRuntime.GetEnvironmentName(), ApRuntime.GetClusterName());
+            log.info("MachineFunction.Environment.Cluster: {}", machineFunction);
+        }
+        catch(Exception e){
+            log.error("Exception caught: {}", e.getMessage());
+        }
     }
 
     /**
@@ -158,10 +174,35 @@ public class PlainSaslServer implements SaslServer {
                         if(null != clientId && !clientId.isEmpty()){
                             log.info("Authorzied Id from SAML token: {}", clientId);
                             this.authorizationId = clientId;
-                            complete = true;
-                            return new byte[0];
                         }
                     }
+                    else if(claim.getClaimType().equals(DEVICE_GROUP)){
+                        String deviceGroup = claim.getValue();
+                        if(null != deviceGroup && !deviceGroup.isEmpty()){
+                            log.info("Device Group from SAML token: {}", deviceGroup);
+                            String[] groups = deviceGroup.split(",");
+                            int i = 0;
+                            for(; i < groups.length && !groups[i].equalsIgnoreCase(machineFunction); ++i) {}
+
+                            if(i == groups.length){
+                                log.error("Incorrect DeviceGroup in the SAML token, it should be targeting at {}, but the current MF.ENV.CLUSTER is: {}", deviceGroup, machineFunction);
+                                throw new SaslAuthenticationException(log.toString());
+                            }
+
+                            for (String g: groups) {
+                                log.info("Device Group: {}", g);
+                            }
+                        }
+                        else{
+                            log.error("The token has DeviceGroup claim missing, authentication failed");
+                            throw new SaslAuthenticationException(log.toString());
+                        }
+                    }
+                }
+
+                if(this.authorizationId != null && !this.authorizationId.isEmpty()){
+                    complete = true;
+                    return new byte[0];
                 }
             }
             log.error("Failed to authenticate token for user: {}, status: {}, error message: {}", username, status, errorMessage);
@@ -171,16 +212,16 @@ public class PlainSaslServer implements SaslServer {
             log.error("Authentication J4n Assembly cannot be found under folder: {}, error message: {}, cause: {}", LIB_PATH, e.getMessage(), null == e.getCause()? "Unknown cause." :  e.getCause().getMessage());
             throw new SaslException(log.toString());
         }
+        catch(IOException e){
+            log.error("IOException happened. Error message: {}", e.getMessage());
+            throw new SaslException(log.toString());
+        }
         catch(UnsupportedClassVersionError e) {
             log.error("Class Version not supported error: {}", e.getMessage());
             throw new SaslException(log.toString());
         }
         catch(UnsatisfiedLinkError e) {
             log.error("JNI error: unsatisfied link error: {}", e.getMessage());
-            throw new SaslException(log.toString());
-        }
-        catch(Exception e){
-            log.error("Unknown exception happened in Saml Authentication Provider: {}, cause: {}, {}", e.getMessage(), null == e.getCause() ?  "Unknown ccause." : e.getCause().getMessage(), "this is for test");
             throw new SaslException(log.toString());
         }
     }

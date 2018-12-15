@@ -795,6 +795,7 @@ project(':clients') {
     compile libs.slf4jApi
     compile files('../repository/jni4net.j-0.8.6.0.jar')
     compile files('../repository/DstsAuthentication.j4n.jar')
+    compile files('../repository/ApSdk4j.jar')
 
     testCompile libs.bcpkix
     testCompile libs.junit
