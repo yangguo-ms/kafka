@@ -25,9 +25,11 @@ public class APPKITrustManager implements X509TrustManager  {
     @Override
     public void checkClientTrusted(X509Certificate[] chain, String authType)
             throws CertificateException {
+        LOG.warn("Client authType:" + authType);
         if (chain == null || chain.length == 0) {
-            throw new IllegalArgumentException(
-                    "Null or empty certificate chain is invalid");
+            String error = "Null or empty certificate chain is invalid";
+            LOG.error(error);
+//            throw new IllegalArgumentException(error);
         }
 
         // For performance reasons we do not verify AP PKI certificate until a request is issued
@@ -38,14 +40,17 @@ public class APPKITrustManager implements X509TrustManager  {
     @Override
     public void checkServerTrusted(X509Certificate[] chain, String authType)
             throws CertificateException {
+        LOG.warn("Server authType:" + authType);
         if (chain == null || chain.length == 0) {
-            throw new IllegalArgumentException(
-                    "Null or empty certificate chain is invalid");
+            String error = "Null or empty certificate chain is invalid";
+            LOG.error(error);
+//            throw new IllegalArgumentException(error);
         }
 
         if (!cachedApVerifyCert(chain[0], serverAcl)) {
-            throw new CertificateException(
-                    "Server certificate verification failed");
+            String error =  "Server certificate verification failed";
+            LOG.error(error);
+//            throw new CertificateException(error);
         }
 
         LOG.debug("Server certificate verification succeeded");
