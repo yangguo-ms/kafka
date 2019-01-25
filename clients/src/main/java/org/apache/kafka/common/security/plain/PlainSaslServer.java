@@ -18,6 +18,7 @@ package org.apache.kafka.common.security.plain;
 
 import java.io.*;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Map;
 
 import javax.security.auth.callback.CallbackHandler;
@@ -26,21 +27,19 @@ import javax.security.sasl.SaslException;
 import javax.security.sasl.SaslServer;
 import javax.security.sasl.SaslServerFactory;
 
+// import jdk.nashorn.internal.parser.JSONParser;
 import org.apache.kafka.common.errors.SaslAuthenticationException;
 import org.apache.kafka.common.security.JaasContext;
+import org.apache.kafka.common.security.auth.KafkaPrincipal;
 import org.apache.kafka.common.security.authenticator.SaslServerCallbackHandler;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.File;
 import net.sf.jni4net.Bridge;
-
 import dstsauthentication.DstsAuthentication;
 import dstsauthentication.AuthenticationResult;
-import dstsauthentication.Claim;
 import com.microsoft.autopilot.ApRuntime;
-
+import com.microsoft.autopilot.Configuration;
+import com.google.gson.Gson;
 
 /**
  * Simple SaslServer implementation for SASL/PLAIN. In order to make this implementation
@@ -62,32 +61,58 @@ public class PlainSaslServer implements SaslServer {
     private static final String JAAS_USER_PREFIX = "user_";
 
     public static final String LIB_PATH = "../../libs";
-    public static final String NAME_IDENTIFIER="http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier";
-    public static final String DEVICE_GROUP="http://sts.msft.net/computer/DeviceGroup";
-    public static final String DSTS_SERVICEDNSNAME="dsts.serviceDnsName";
-    public static final String DSTS_SERVICENAME="dsts.serviceName";
-    public static final String DSTS_DSTSREALM="dsts.dstsRealm";
-    public static final String DSTS_DSTSDNSNAME="dsts.dstsDnsName";
+    public static final String DSTS_SECTION_NAME = "Dsts";
+    public static final String DSTS_CONFIG_SERVICEDNSNAME="ServiceDnsName";
+    public static final String DSTS_CONFIG_SERVICENAME="ServiceName";
+    public static final String DSTS_CONFIG_DSTSREALM="DstsRealm";
+    public static final String DSTS_CONFIG_DSTSDNSNAME="DstsDns";
+    public static final String DSTS_CONFIG_ROLE="Role";
+    public static final String DSTS_METADATA_CONFIGFILE="dsts.metadata.configfile";
     public static final String DSTS_AUTHENTICATION_J4N_LIBRARY = "dsts.authenticationJ4nLibrary";
     public static final String AUTHENTICATION_STATUS_OK="OK";
+    public static final String PRINCIPAL_TYPE = "principal.type";
 
     private final JaasContext jaasContext;
+    private final Map<String, ?> props;
+    private final Map<String, String> customizedProperties = new HashMap<>();
+
 
     private boolean complete;
     private String authorizationId;
-    private String machineFunction;
+    private DstsMetadata dstsMetadata = null;
+    private Configuration configuration = null;
 
 
-    public PlainSaslServer(JaasContext jaasContext) {
+    public PlainSaslServer(JaasContext jaasContext, Map<String, ?> props) {
         this.jaasContext = jaasContext;
+        this.props = props;
 
+        log.info("creating Plain Sasl Server ......");
         if(!ApRuntime.isInitialized()){
             log.info("Initializing AP Runtime ...");
             ApRuntime.initialize();
         }
         try{
-            machineFunction = String.format("%s.%s.%s", ApRuntime.GetMachineFunction(), ApRuntime.GetEnvironmentName(), ApRuntime.GetClusterName());
-            log.info("MachineFunction.Environment.Cluster: {}", machineFunction);
+            log.info("getting config file path");
+            String dataDir = ApRuntime.GetDataDir();
+            String configFilePath = dataDir + "\\AzPubSubConfig\\" + System.getProperty(DSTS_METADATA_CONFIGFILE);
+            configFilePath = configFilePath.replace('\\', '/');
+
+            log.info("Dsts metadata configFilePath: {}", configFilePath);
+
+            configuration = new Configuration(configFilePath);
+
+            String dstsDns = configuration.getStringParameter(DSTS_SECTION_NAME, DSTS_CONFIG_DSTSDNSNAME, "");
+            String serviceDnsName = configuration.getStringParameter(DSTS_SECTION_NAME, DSTS_CONFIG_SERVICEDNSNAME, "");
+            String serviceName = configuration.getStringParameter(DSTS_SECTION_NAME, DSTS_CONFIG_SERVICENAME, "");
+            String dstsRealm = configuration.getStringParameter(DSTS_SECTION_NAME, DSTS_CONFIG_DSTSREALM, "");
+            String claimRole = configuration.getStringParameter(DSTS_SECTION_NAME, DSTS_CONFIG_ROLE, "");
+            log.info("DstsDnsName: {}, ServiceDnsName: {}, ServiceName: {}, Realm: {}", dstsDns, serviceDnsName, serviceName, dstsRealm);
+            dstsMetadata = new DstsMetadata(dstsDns, serviceDnsName, serviceName, dstsRealm, claimRole);
+            log.info("Dsts Dns Name: {}", dstsMetadata.DstsDns);
+            log.info("Dsts Service Name: {}", dstsMetadata.ServiceName);
+            log.info("Dsts Service Dns Name: {}", dstsMetadata.ServiceDnsName);
+            log.info("Dsts Service Dsts Realm: {}", dstsMetadata.DstsRealm);
         }
         catch(Exception e){
             log.error("Exception caught: {}", e.getMessage());
@@ -145,60 +170,35 @@ public class PlainSaslServer implements SaslServer {
 
         if(password.equals(expectedPassword)){
             this.authorizationId = username;
-            complete = true;
+            this.customizedProperties.put(this.PRINCIPAL_TYPE, KafkaPrincipal.USER_TYPE);
             return new byte[0];
         }
 
         String j4nLibFilePath = LIB_PATH + "/" + System.getProperty(DSTS_AUTHENTICATION_J4N_LIBRARY);
+        String dstsMetadataJson;
 
         try {
+
+            // TODO: dstsMetadata needs be retrieved from data config file.
+
             Bridge.init(new File(LIB_PATH));
             Bridge.LoadAndRegisterAssemblyFrom(new java.io.File(j4nLibFilePath));
             DstsAuthentication authentication = new DstsAuthentication();
 
-            log.info("Dsts Dns Name: {}", System.getProperty(DSTS_DSTSDNSNAME));
-            log.info("Dsts Service Name: {}", System.getProperty(DSTS_SERVICEDNSNAME));
-            log.info("Dsts Service Dns Name: {}", System.getProperty(DSTS_SERVICENAME));
-            AuthenticationResult res = authentication.Authenticate(System.getProperty(DSTS_DSTSREALM),
-                    System.getProperty(DSTS_DSTSDNSNAME),
-                    System.getProperty(DSTS_SERVICEDNSNAME),
-                    System.getProperty(DSTS_SERVICENAME),
+            AuthenticationResult res = authentication.Authenticate(dstsMetadata.DstsRealm,
+                    dstsMetadata.DstsDns,
+                    dstsMetadata.ServiceDnsName,
+                    dstsMetadata.ServiceName,
                     password);
+
             String status = res.getStatus();
             String errorMessage = res.getErrorMessage();
 
             if(status.equals(AUTHENTICATION_STATUS_OK)) {
-                for (Claim claim : res.getClaims()) {
-                    if(claim.getClaimType().equals(NAME_IDENTIFIER)){
-                        String clientId = claim.getValue();
-                        if(null != clientId && !clientId.isEmpty()){
-                            log.info("Authorzied Id from SAML token: {}", clientId);
-                            this.authorizationId = clientId;
-                        }
-                    }
-                    else if(claim.getClaimType().equals(DEVICE_GROUP)){
-                        String deviceGroup = claim.getValue();
-                        if(null != deviceGroup && !deviceGroup.isEmpty()){
-                            log.info("Device Group from SAML token: {}", deviceGroup);
-                            String[] groups = deviceGroup.split(",");
-                            int i = 0;
-                            for(; i < groups.length && !groups[i].equalsIgnoreCase(machineFunction); ++i) {}
-
-                            if(i == groups.length){
-                                log.error("Incorrect DeviceGroup in the SAML token, it should be targeting at {}, but the current MF.ENV.CLUSTER is: {}", deviceGroup, machineFunction);
-                                throw new SaslAuthenticationException(log.toString());
-                            }
-
-                            for (String g: groups) {
-                                log.info("Device Group: {}", g);
-                            }
-                        }
-                        else{
-                            log.error("The token has DeviceGroup claim missing, authentication failed");
-                            throw new SaslAuthenticationException(log.toString());
-                        }
-                    }
-                }
+                Gson gson = new Gson();
+                Token token = new Token(res.getClaims(), res.getValidFrom(), res.getValidTo());
+                this.authorizationId = gson.toJson(token);
+                this.customizedProperties.put(this.PRINCIPAL_TYPE, KafkaPrincipal.Token_Type);
 
                 if(this.authorizationId != null && !this.authorizationId.isEmpty()){
                     complete = true;
@@ -242,6 +242,9 @@ public class PlainSaslServer implements SaslServer {
     public Object getNegotiatedProperty(String propName) {
         if (!complete)
             throw new IllegalStateException("Authentication exchange has not completed");
+        if(this.customizedProperties.containsKey(propName)){
+            return this.customizedProperties.get(propName);
+        }
         return null;
     }
 
@@ -269,10 +272,13 @@ public class PlainSaslServer implements SaslServer {
     }
 
     public static class PlainSaslServerFactory implements SaslServerFactory {
+        private static final Logger log = LoggerFactory.getLogger(PlainSaslServerFactory.class);
 
         @Override
         public SaslServer createSaslServer(String mechanism, String protocol, String serverName, Map<String, ?> props, CallbackHandler cbh)
                 throws SaslException {
+
+            log.info("creating Sasl Server ...");
 
             if (!PLAIN_MECHANISM.equals(mechanism))
                 throw new SaslException(String.format("Mechanism \'%s\' is not supported. Only PLAIN is supported.", mechanism));
@@ -280,7 +286,7 @@ public class PlainSaslServer implements SaslServer {
             if (!(cbh instanceof SaslServerCallbackHandler))
                 throw new SaslException("CallbackHandler must be of type SaslServerCallbackHandler, but it is: " + cbh.getClass());
 
-            return new PlainSaslServer(((SaslServerCallbackHandler) cbh).jaasContext());
+            return new PlainSaslServer(((SaslServerCallbackHandler) cbh).jaasContext(), props);
         }
 
         @Override

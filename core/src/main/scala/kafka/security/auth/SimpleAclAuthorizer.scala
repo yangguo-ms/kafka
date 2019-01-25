@@ -1,19 +1,19 @@
 /**
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+  * Licensed to the Apache Software Foundation (ASF) under one or more
+  * contributor license agreements.  See the NOTICE file distributed with
+  * this work for additional information regarding copyright ownership.
+  * The ASF licenses this file to You under the Apache License, Version 2.0
+  * (the "License"); you may not use this file except in compliance with
+  * the License.  You may obtain a copy of the License at
+  *
+  * http://www.apache.org/licenses/LICENSE-2.0
+  *
+  * Unless required by applicable law or agreed to in writing, software
+  * distributed under the License is distributed on an "AS IS" BASIS,
+  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  */
 package kafka.security.auth
 
 import java.nio.charset.StandardCharsets
@@ -32,7 +32,7 @@ import org.apache.kafka.common.security.auth.KafkaPrincipal
 import org.apache.kafka.common.utils.{SecurityUtils, Time}
 
 import scala.collection.JavaConverters._
-import scala.util.{Random, Try}
+import scala.util.Random
 
 object SimpleAclAuthorizer {
   //optional override zookeeper cluster configuration where acls will be stored, if not specified acls will be stored in
@@ -68,8 +68,8 @@ class SimpleAclAuthorizer extends Authorizer with Logging {
   private val retryBackoffJitterMs = 50
 
   /**
-   * Guaranteed to be called before any authorize call is made.
-   */
+    * Guaranteed to be called before any authorize call is made.
+    */
   override def configure(javaConfigs: util.Map[String, _]) {
     val configs = javaConfigs.asScala
     val props = new java.util.Properties()
@@ -102,19 +102,32 @@ class SimpleAclAuthorizer extends Authorizer with Logging {
   }
 
   override def authorize(session: Session, operation: Operation, resource: Resource): Boolean = {
-    authorizerLogger.info("principal: {}, Operation: {}", Try(session.principal.getName).getOrElse("Empty principal name"), operation.name)
-    resource.resourceType match {
-      case Topic => {
-        val acls = getAcls(resource) ++ getAcls(new Resource(resource.resourceType, Resource.WildCardResource))
-        session.principal.getPrincipalType match {
-          case "User" => aclMatch(operation, resource, session.principal, session.clientAddress.getHostAddress, Allow, acls)
-          case _ => true
-        }
-      }
-      case _ => true
-    }
-  }
+    val principal = session.principal
+    val host = session.clientAddress.getHostAddress
+    val acls = getAcls(resource) ++ getAcls(new Resource(resource.resourceType, Resource.WildCardResource))
 
+    // Check if there is any Deny acl match that would disallow this operation.
+    val denyMatch = aclMatch(operation, resource, principal, host, Deny, acls)
+
+    // Check if there are any Allow ACLs which would allow this operation.
+    // Allowing read, write, delete, or alter implies allowing describe.
+    // See #{org.apache.kafka.common.acl.AclOperation} for more details about ACL inheritance.
+    val allowOps = operation match {
+      case Describe => Set[Operation](Describe, Read, Write, Delete, Alter)
+      case DescribeConfigs => Set[Operation](DescribeConfigs, AlterConfigs)
+      case _ => Set[Operation](operation)
+    }
+    val allowMatch = allowOps.exists(operation => aclMatch(operation, resource, principal, host, Allow, acls))
+
+    //we allow an operation if a user is a super user or if no acls are found and user has configured to allow all users
+    //when no acls are found or if no deny acls are found and at least one allow acls matches.
+    val authorized = isSuperUser(operation, resource, principal, host) ||
+      isEmptyAclAndAuthorized(operation, resource, principal, host, acls) ||
+      (!denyMatch && allowMatch)
+
+    logAuditMessage(principal, authorized, operation, resource, host)
+    authorized
+  }
 
   def isEmptyAclAndAuthorized(operation: Operation, resource: Resource, principal: KafkaPrincipal, host: String, acls: Set[Acl]): Boolean = {
     if (acls.isEmpty) {
@@ -130,7 +143,7 @@ class SimpleAclAuthorizer extends Authorizer with Logging {
     } else false
   }
 
-  private def aclMatch(operations: Operation, resource: Resource, principal: KafkaPrincipal, host: String, permissionType: PermissionType, acls: Set[Acl]): Boolean = {
+  protected def aclMatch(operations: Operation, resource: Resource, principal: KafkaPrincipal, host: String, permissionType: PermissionType, acls: Set[Acl]): Boolean = {
     acls.find { acl =>
       acl.permissionType == permissionType &&
         (acl.principal == principal || acl.principal == Acl.WildCardPrincipal) &&
@@ -196,7 +209,7 @@ class SimpleAclAuthorizer extends Authorizer with Logging {
     if (zkClient != null) zkClient.close()
   }
 
-  private def loadCache()  {
+  protected def loadCache()  {
     inWriteLock(lock) {
       val resourceTypes = zkClient.getResourceTypes()
       for (rType <- resourceTypes) {
