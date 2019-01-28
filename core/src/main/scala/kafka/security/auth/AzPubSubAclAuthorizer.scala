@@ -16,57 +16,18 @@
   */
 package kafka.security.auth
 
-import java.nio.charset.StandardCharsets
-import java.util
-import java.util.concurrent.locks.ReentrantReadWriteLock
-
 import com.google.gson.Gson
 import com.typesafe.scalalogging.Logger
-import kafka.common.{NotificationHandler, ZkNodeChangeNotificationListener}
 import kafka.network.RequestChannel.Session
-import kafka.security.auth.SimpleAclAuthorizer.VersionedAcls
-import kafka.server.KafkaConfig
-import kafka.utils.CoreUtils.{inReadLock, inWriteLock}
 import kafka.utils._
-import kafka.zk.{AclChangeNotificationSequenceZNode, AclChangeNotificationZNode, KafkaZkClient}
 import org.apache.kafka.common.security.auth.KafkaPrincipal
+import scala.util.Try
+import org.apache.kafka.common.security.plain.Token
 import org.apache.kafka.common.utils.{SecurityUtils, Time}
 
-import scala.collection.JavaConverters._
-import scala.util.{Random, Try}
-import org.apache.kafka.common.security.plain.Token
-/*
-object AzPubSubAclAuthorizer {
-  //optional override zookeeper cluster configuration where acls will be stored, if not specified acls will be stored in
-  //same zookeeper where all other kafka broker info is stored.
-  val ZkUrlProp = "authorizer.zookeeper.url"
-  val ZkConnectionTimeOutProp = "authorizer.zookeeper.connection.timeout.ms"
-  val ZkSessionTimeOutProp = "authorizer.zookeeper.session.timeout.ms"
-  val ZkMaxInFlightRequests = "authorizer.zookeeper.max.in.flight.requests"
 
-  //List of users that will be treated as super users and will have access to all the resources for all actions from all hosts, defaults to no super users.
-  val SuperUsersProp = "super.users"
-  //If set to true when no acls are found for a resource , authorizer allows access to everyone. Defaults to false.
-  val AllowEveryoneIfNoAclIsFoundProp = "allow.everyone.if.no.acl.found"
-
-//  case class VersionedAcls(acls: Set[Acl], zkVersion: Int)
-}
-*/
 class AzPubSubAclAuthorizer extends SimpleAclAuthorizer with Logging {
   private val authorizerLogger = Logger("kafka.authorizer.logger")
-  private var superUsers = Set.empty[KafkaPrincipal]
-  private var shouldAllowEveryoneIfNoAclIsFound = false
-  private var zkClient: KafkaZkClient = null
-  private var aclChangeListener: ZkNodeChangeNotificationListener = null
-  private val aclCache = new scala.collection.mutable.HashMap[Resource, VersionedAcls]
-  private val lock = new ReentrantReadWriteLock()
-
-  // The maximum number of times we should try to update the resource acls in zookeeper before failing;
-  // This should never occur, but is a safeguard just in case.
-  //protected[auth] var maxUpdateRetries = 10
-
-  private val retryBackoffMs = 100
-  private val retryBackoffJitterMs = 50
 
   //
   // authorizing each request.
@@ -82,39 +43,58 @@ class AzPubSubAclAuthorizer extends SimpleAclAuthorizer with Logging {
       val gson = new Gson()
       token = gson.fromJson(session.principal.getName, classOf[Token])
       if(null == token){
-        authorizerLogger.warn("failed to deserialize JSON token")
+        authorizerLogger.warn("failed to deserialize JSON token, token json string: {}", session.principal.getName)
         return false
       }
 
-      if(system.DateTime.Compare(system.DateTime.getUtcNow, token.ValidFrom) > 0 || system.DateTime.Compare(system.DateTime.getUtcNow, token.ValidTo) > 0){
-        authorizerLogger.warn("Token is already expired. authorization is failed.")
+      if(system.DateTime.Compare(token.ValidFrom, system.DateTime.getUtcNow) > 0){
+        authorizerLogger.warn("The ValidFrom date time of the token is in the future, this is invalid. ValidFrom: {}, now: {}", token.ValidFrom, system.DateTime.getUtcNow);
         return false
       }
+      if(system.DateTime.Compare(system.DateTime.getUtcNow, token.ValidTo) > 0){
+        authorizerLogger.warn("The token has already expired. ValidTo: {}, now: {}", token.ValidTo, system.DateTime.getUtcNow);
+        return false
+      }
+      authorizerLogger.info("Token is valid. ValidFrom: {}, ValidTo:", token.ValidFrom, token.ValidTo);
     }
 
     resource.resourceType match {
       case Topic => {
         val acls = getAcls(resource) ++ getAcls(new Resource(resource.resourceType, Resource.WildCardResource))
+        authorizerLogger.debug("Acls read from Zookeeper, length: {}", acls.size)
         session.principal.getPrincipalType match {
           case KafkaPrincipal.USER_TYPE => aclMatch(operation, resource, session.principal, session.clientAddress.getHostAddress, Allow, acls)
           case KafkaPrincipal.Token_Type=> {
             token.Claims.foreach(c => {
-              authorizerLogger.info("Claim from json token: {}", c.getValue)
+              authorizerLogger.debug("Claim from json token: {}", c.getValue)
               val prin = new KafkaPrincipal(KafkaPrincipal.Role_Type, c.getValue)
               if(aclMatch(operation, resource, prin, session.clientAddress.getHostAddress, Allow, acls)){
                 authorizerLogger.info("Authorization for {} operation {} on resource {} succeeded.", prin, operation, resource)
-                true
+                return true
               }
             })
+            authorizerLogger.warn("Token is not authorized...")
             return false
           }
           case _ => {
-            authorizerLogger.warn("unknown principal: {}, accessing resource: {}, operation: {}", session.principal, resource, operation);
+            authorizerLogger.warn("unknown principal rejected: {}, accessing resource: {}, operation: {}", session.principal, resource, operation);
             return false
           }
         }
       }
       case _ => return true
+    }
+  }
+
+  protected override def aclMatch(operations: Operation, resource: Resource, principal: KafkaPrincipal, host: String, permissionType: PermissionType, acls: Set[Acl]): Boolean = {
+    acls.find { acl =>
+      acl.permissionType == permissionType &&
+        (acl.principal == principal || acl.principal == Acl.WildCardPrincipal || acl.principal == Acl.wildCardUserTypePrincipal || acl.principal == Acl.wildCardRoleTypePrincipal) &&
+        (operations == acl.operation || acl.operation == All) &&
+        (acl.host == host || acl.host == Acl.WildCardHost)
+    }.exists { acl =>
+      authorizerLogger.debug(s"operation = $operations on resource = $resource from host = $host is $permissionType based on acl = $acl")
+      true
     }
   }
 }

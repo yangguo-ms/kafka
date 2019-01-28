@@ -125,10 +125,9 @@ public class DefaultKafkaPrincipalBuilder implements KafkaPrincipalBuilder, Clos
             else{
                 Object principalType = saslServer.getNegotiatedProperty(PlainSaslServer.PRINCIPAL_TYPE);
                 if(principalType != null){
-                    log.info("principal Type is: {}", principalType.toString());
+                    log.debug("principal Type is: {}", principalType.toString());
                     return new KafkaPrincipal(principalType.toString(), saslServer.getAuthorizationID());
                 }
-                log.warn("principal type is null");
                 return new KafkaPrincipal(KafkaPrincipal.USER_TYPE, saslServer.getAuthorizationID());
             }
         } else {
