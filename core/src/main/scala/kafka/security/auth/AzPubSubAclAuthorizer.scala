@@ -59,25 +59,40 @@ class AzPubSubAclAuthorizer extends SimpleAclAuthorizer with Logging {
     }
 
     resource.resourceType match {
+
       case Topic => {
+
         val acls = getAcls(resource) ++ getAcls(new Resource(resource.resourceType, Resource.WildCardResource))
+
         authorizerLogger.debug("Acls read from Zookeeper, length: {}", acls.size)
+
         session.principal.getPrincipalType match {
+
           case KafkaPrincipal.USER_TYPE => aclMatch(operation, resource, session.principal, session.clientAddress.getHostAddress, Allow, acls)
+
           case KafkaPrincipal.Token_Type=> {
             token.Claims.foreach(c => {
+
               authorizerLogger.debug("Claim from json token: {}", c.getValue)
+
               val prin = new KafkaPrincipal(KafkaPrincipal.Role_Type, c.getValue)
+
               if(aclMatch(operation, resource, prin, session.clientAddress.getHostAddress, Allow, acls)){
+
                 authorizerLogger.info("Authorization for {} operation {} on resource {} succeeded.", prin, operation, resource)
+
                 return true
               }
             })
+
             authorizerLogger.warn("Token is not authorized...")
+
             return false
           }
           case _ => {
+
             authorizerLogger.warn("unknown principal rejected: {}, accessing resource: {}, operation: {}", session.principal, resource, operation);
+
             return false
           }
         }
