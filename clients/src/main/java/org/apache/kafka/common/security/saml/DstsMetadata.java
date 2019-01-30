@@ -1,4 +1,4 @@
-package org.apache.kafka.common.security.plain;
+package org.apache.kafka.common.security.saml;
 
 public class DstsMetadata {
     public String DstsDns;

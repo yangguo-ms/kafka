@@ -28,7 +28,7 @@ import org.apache.kafka.common.security.auth.SaslAuthenticationContext;
 import org.apache.kafka.common.security.auth.SslAuthenticationContext;
 import org.apache.kafka.common.security.kerberos.KerberosName;
 import org.apache.kafka.common.security.kerberos.KerberosShortNamer;
-import org.apache.kafka.common.security.plain.PlainSaslServer;
+import org.apache.kafka.common.security.saml.SamlSaslServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -123,7 +123,7 @@ public class DefaultKafkaPrincipalBuilder implements KafkaPrincipalBuilder, Clos
             if (SaslConfigs.GSSAPI_MECHANISM.equals(saslServer.getMechanismName()))
                 return applyKerberosShortNamer(saslServer.getAuthorizationID());
             else{
-                Object principalType = saslServer.getNegotiatedProperty(PlainSaslServer.PRINCIPAL_TYPE);
+                Object principalType = saslServer.getNegotiatedProperty(SamlSaslServer.PRINCIPAL_TYPE);
                 if(principalType != null){
                     log.debug("principal Type is: {}", principalType.toString());
                     return new KafkaPrincipal(principalType.toString(), saslServer.getAuthorizationID());

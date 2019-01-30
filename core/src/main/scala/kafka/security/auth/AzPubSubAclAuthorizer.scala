@@ -21,8 +21,9 @@ import com.typesafe.scalalogging.Logger
 import kafka.network.RequestChannel.Session
 import kafka.utils._
 import org.apache.kafka.common.security.auth.KafkaPrincipal
+import org.apache.kafka.common.security.saml.Token
+
 import scala.util.Try
-import org.apache.kafka.common.security.plain.Token
 import org.apache.kafka.common.utils.{SecurityUtils, Time}
 
 

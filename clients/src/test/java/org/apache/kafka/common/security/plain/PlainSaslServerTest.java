@@ -46,7 +46,7 @@ public class PlainSaslServerTest {
         options.put("user_" + USER_B, PASSWORD_B);
         jaasConfig.addEntry("jaasContext", PlainLoginModule.class.getName(), options);
         JaasContext jaasContext = new JaasContext("jaasContext", JaasContext.Type.SERVER, jaasConfig, null);
-        saslServer = new PlainSaslServer(jaasContext, null);
+        saslServer = new PlainSaslServer(jaasContext);
     }
 
     @Test
