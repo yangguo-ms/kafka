@@ -33,7 +33,9 @@ class AzPubSubAclAuthorizer extends SimpleAclAuthorizer with Logging {
   // authorizing each request.
   // if the principal type is SAML token, we need to ensure the token is not expired, despite of the resource type being accessed.
   // if the request is accessing topic resource, we will do topic authorization; for other type of source,like CLUSTER,
-  // the request should be coming from cluster internal, this kinds of requests should be allowed.
+  // the request should be coming from cluster internal, this kinds of requests should be always allowed.
+  // If the request is coming from channels like PLAINTEXT or SSL, the principal created by Kafka is "User:ANONYMOUS",
+  // we need to make sure in AzPubSubRegistrar (Topics-Prod.ini) the ANONYMOUS user is granted with appropriate permission.
   //
   override def authorize(session: Session, operation: Operation, resource: Resource): Boolean = {
     authorizerLogger.info("principal: {}, Operation: {}", Try(session.principal.getName).getOrElse("Empty principal name"), operation.name)
@@ -104,7 +106,9 @@ class AzPubSubAclAuthorizer extends SimpleAclAuthorizer with Logging {
   protected override def aclMatch(operations: Operation, resource: Resource, principal: KafkaPrincipal, host: String, permissionType: PermissionType, acls: Set[Acl]): Boolean = {
     acls.find { acl =>
       acl.permissionType == permissionType &&
-        (acl.principal == principal || acl.principal == Acl.WildCardPrincipal || acl.principal == Acl.wildCardUserTypePrincipal || acl.principal == Acl.wildCardRoleTypePrincipal) &&
+        (acl.principal == principal
+          || (principal.getPrincipalType == KafkaPrincipal.USER_TYPE && acl.principal == Acl.wildCardUserTypePrincipal)
+          || (principal.getPrincipalType == KafkaPrincipal.Role_Type && acl.principal == Acl.wildCardRoleTypePrincipal ) ) &&
         (operations == acl.operation || acl.operation == All) &&
         (acl.host == host || acl.host == Acl.WildCardHost)
     }.exists { acl =>

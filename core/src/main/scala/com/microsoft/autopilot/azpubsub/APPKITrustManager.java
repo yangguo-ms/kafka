@@ -20,19 +20,16 @@ public class APPKITrustManager implements X509TrustManager  {
     private static final int defaultAuthExpireMinutes = 15;
     private static final int defaultNoAuthExpireMinutes = 1;
 
-    private String serverAcl = "APMF\\AzPubSub.Autopilot.*";
+    private String serverAcl = "APMF\\AzPubSub.*.*";
 
     @Override
     public void checkClientTrusted(X509Certificate[] chain, String authType)
             throws CertificateException {
-        LOG.warn("Client authType:" + authType);
+        LOG.info("Client authType:" + authType);
         if (chain == null || chain.length == 0) {
             String error = "Null or empty certificate chain is invalid";
             LOG.error(error);
-//            throw new IllegalArgumentException(error);
         }
-
-        // For performance reasons we do not verify AP PKI certificate until a request is issued
 
         return;
     }
@@ -40,17 +37,19 @@ public class APPKITrustManager implements X509TrustManager  {
     @Override
     public void checkServerTrusted(X509Certificate[] chain, String authType)
             throws CertificateException {
-        LOG.warn("Server authType:" + authType);
+
+        LOG.info("Server authType:" + authType);
+
         if (chain == null || chain.length == 0) {
             String error = "Null or empty certificate chain is invalid";
             LOG.error(error);
-//            throw new IllegalArgumentException(error);
+            throw new IllegalArgumentException(error);
         }
 
         if (!cachedApVerifyCert(chain[0], serverAcl)) {
             String error =  "Server certificate verification failed";
             LOG.error(error);
-//            throw new CertificateException(error);
+            throw new CertificateException(error);
         }
 
         LOG.debug("Server certificate verification succeeded");
