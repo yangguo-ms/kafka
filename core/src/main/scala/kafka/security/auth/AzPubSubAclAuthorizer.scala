@@ -25,10 +25,15 @@ import org.apache.kafka.common.security.saml.Token
 
 import scala.util.Try
 import org.apache.kafka.common.utils.{SecurityUtils, Time}
+import com.yammer.metrics.core.Gauge
+import kafka.metrics.KafkaMetricsGroup
+import java.util.concurrent.TimeUnit
 
 
-class AzPubSubAclAuthorizer extends SimpleAclAuthorizer with Logging {
+class AzPubSubAclAuthorizer extends SimpleAclAuthorizer with KafkaMetricsGroup {
   private val authorizerLogger = Logger("kafka.authorizer.logger")
+  var brokerHosts  = Set[String]()
+  var rejectedClients = Set[String]()
 
   //
   // authorizing each request.
@@ -40,22 +45,41 @@ class AzPubSubAclAuthorizer extends SimpleAclAuthorizer with Logging {
   //
   override def authorize(session: Session, operation: Operation, resource: Resource): Boolean = {
     authorizerLogger.info("principal: {}, Operation: {}", Try(session.principal.getName).getOrElse("Empty principal name"), operation.name)
+    newGauge(
+      "AuthorizingRequest",
+      new Gauge[Int] {
+        def value = 1
+      })
+
 
     var token:Token = null
     if(Try(session.principal.getPrincipalType).getOrElse("") == KafkaPrincipal.Token_Type){
       val gson = new Gson()
       token = gson.fromJson(session.principal.getName, classOf[Token])
       if(null == token){
+
         authorizerLogger.warn("failed to deserialize JSON token, token json string: {}", session.principal.getName)
+
+        newTimer("TokenDesearializationFailRateMs", TimeUnit.MILLISECONDS, TimeUnit.SECONDS)
+
         return false
       }
 
       if(system.DateTime.Compare(token.ValidFrom, system.DateTime.getUtcNow) > 0){
+
         authorizerLogger.warn("The ValidFrom date time of the token is in the future, this is invalid. ValidFrom: {}, now: {}", token.ValidFrom, system.DateTime.getUtcNow);
+
+        newTimer("TokenInvalidFromDatetimeRateMs", TimeUnit.MILLISECONDS, TimeUnit.SECONDS)
+
         return false
       }
+
       if(system.DateTime.Compare(system.DateTime.getUtcNow, token.ValidTo) > 0){
+
         authorizerLogger.warn("The token has already expired. ValidTo: {}, now: {}", token.ValidTo, system.DateTime.getUtcNow);
+
+        newTimer("TokenExpiredRateMs", TimeUnit.MILLISECONDS, TimeUnit.SECONDS)
+
         return false
       }
       authorizerLogger.info("Token is valid. ValidFrom: {}, ValidTo:", token.ValidFrom, token.ValidTo);
@@ -84,11 +108,14 @@ class AzPubSubAclAuthorizer extends SimpleAclAuthorizer with Logging {
 
                 authorizerLogger.info("Authorization for {} operation {} on resource {} succeeded.", prin, operation, resource)
 
+                newTimer("TopicAuthorizationUsingTokenSuccessfulRateMs", TimeUnit.MILLISECONDS, TimeUnit.SECONDS)
+
                 return true
               }
             })
 
             authorizerLogger.warn("Token is not authorized...")
+            newTimer("TokenNotAuthorizedForTopicRateMs", TimeUnit.MILLISECONDS, TimeUnit.SECONDS)
 
             return false
           }
@@ -100,7 +127,25 @@ class AzPubSubAclAuthorizer extends SimpleAclAuthorizer with Logging {
           }
         }
       }
-      case _ => return true
+      case _ => {
+        authorizerLogger.warn("session client address: {}", session.clientAddress.getHostAddress)
+
+        if(!rejectedClients.contains(session.clientAddress.getHostAddress) && !brokerHosts.contains(session.clientAddress.getHostAddress)) {
+          val allBrokers = zkClient.getAllBrokersInCluster
+          allBrokers.foreach(b => b.endPoints.foreach(e => brokerHosts += e.host))
+          if(!brokerHosts.contains(session.clientAddress.getHostAddress)){
+            rejectedClients += session.clientAddress.getHostAddress
+
+            authorizerLogger.error("client {} is rejected because it is accessing resource type {} using principal type {}", session.clientAddress.getHostAddress, resource.resourceType, session.principal.getPrincipalType )
+            newTimer("ClientAddressRejectedRateMs", TimeUnit.MILLISECONDS, TimeUnit.SECONDS)
+          }
+          else{
+            authorizerLogger.info("client {} accessing resource type {} is allowed", session.clientAddress.getHostAddress, resource.resourceType)
+          }
+        }
+
+        return !(rejectedClients contains session.clientAddress.getHostAddress)
+      }
     }
   }
 

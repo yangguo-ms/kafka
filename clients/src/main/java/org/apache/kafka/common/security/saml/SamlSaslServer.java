@@ -42,6 +42,9 @@ import dstsauthentication.AuthenticationResult;
 import com.microsoft.autopilot.ApRuntime;
 import com.microsoft.autopilot.Configuration;
 import com.google.gson.Gson;
+import org.apache.kafka.common.metrics.Metrics;
+import org.apache.kafka.common.metrics.Sensor;
+import org.apache.kafka.common.metrics.stats.Avg;
 
 /**
  * Simple SaslServer implementation for SASL/PLAIN. In order to make this implementation
@@ -56,7 +59,7 @@ import com.google.gson.Gson;
  * servers in production systems, this module can be replaced with a different implementation.
  *
  */
-public class SamlSaslServer implements SaslServer {
+public class SamlSaslServer implements SaslServer{
     private static final Logger log = LoggerFactory.getLogger(SamlSaslServer.class);
 
     public static final String PLAIN_MECHANISM = "PLAIN";

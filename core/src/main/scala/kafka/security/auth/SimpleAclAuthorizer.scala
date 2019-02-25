@@ -54,7 +54,7 @@ class SimpleAclAuthorizer extends Authorizer with Logging {
   private val authorizerLogger = Logger("kafka.authorizer.logger")
   private var superUsers = Set.empty[KafkaPrincipal]
   private var shouldAllowEveryoneIfNoAclIsFound = false
-  private var zkClient: KafkaZkClient = null
+  protected var zkClient: KafkaZkClient = null
   private var aclChangeListener: ZkNodeChangeNotificationListener = null
 
   private val aclCache = new scala.collection.mutable.HashMap[Resource, VersionedAcls]
