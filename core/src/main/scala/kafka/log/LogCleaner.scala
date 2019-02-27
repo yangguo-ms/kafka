@@ -490,9 +490,13 @@ private[log] class Cleaner(val id: Int,
 
     // create a new segment with a suffix appended to the name of the log and indexes
     val firstSegment = segments.head
+    //firstSegment.log.closeHandlers()
     deleteCleanedFileIfExists(firstSegment.log.file)
+    //firstSegment.offsetIndex.close()
     deleteCleanedFileIfExists(firstSegment.offsetIndex.file)
+    //firstSegment.timeIndex.close()
     deleteCleanedFileIfExists(firstSegment.timeIndex.file)
+    //firstSegment.txnIndex.close()
     deleteCleanedFileIfExists(firstSegment.txnIndex.file)
 
     val baseOffset = firstSegment.baseOffset

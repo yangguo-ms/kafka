@@ -586,18 +586,27 @@ class Log(@volatile var dir: File,
           // the checkpoint file in renamed log directory
           _leaderEpochCache = initializeLeaderEpochCache()
         }
+        openHandlers()
       }
     }
   }
 
   /**
-   * Close file handlers used by log but don't write to disk. This is called if the log directory is offline
-   */
+    * Close file handlers used by log but don't write to disk. This is called if the log directory is offline
+    */
   def closeHandlers() {
     debug("Closing handlers")
     lock synchronized {
       logSegments.foreach(_.closeHandlers())
       isMemoryMappedBufferClosed = true
+    }
+  }
+
+  def openHandlers() {
+    debug("Opening handlers")
+    lock synchronized {
+      logSegments.foreach(_.openHandlers())
+      isMemoryMappedBufferClosed = false
     }
   }
 

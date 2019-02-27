@@ -21,6 +21,7 @@ import org.apache.kafka.common.utils.AbstractIterator;
 import org.apache.kafka.common.utils.Time;
 import org.apache.kafka.common.utils.Utils;
 
+import java.io.File;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -50,6 +51,8 @@ public abstract class AbstractRecords implements Records {
                 return false;
         return true;
     }
+
+    public void reopen(File f){}
 
     /**
      * Down convert batches to the provided message format version. The first offset parameter is only relevant in the

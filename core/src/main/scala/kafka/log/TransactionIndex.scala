@@ -80,7 +80,7 @@ class TransactionIndex(val startOffset: Long, @volatile var file: File) extends 
     }
   }
 
-  private def openChannel(): FileChannel = {
+  def openChannel(): FileChannel = {
     val channel = FileChannel.open(file.toPath, StandardOpenOption.READ, StandardOpenOption.WRITE,
       StandardOpenOption.CREATE)
     maybeChannel = Some(channel)
@@ -104,10 +104,12 @@ class TransactionIndex(val startOffset: Long, @volatile var file: File) extends 
   def renameTo(f: File): Unit = {
     try {
       if (file.exists) {
-        channel.close()
+        close()
         Utils.atomicMoveWithFallback(file.toPath, f.toPath)
       }
-    } finally file = f
+    } finally {
+      file = f
+    }
   }
 
   def truncateTo(offset: Long): Unit = {

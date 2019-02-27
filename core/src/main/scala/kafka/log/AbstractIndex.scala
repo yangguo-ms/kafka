@@ -48,10 +48,12 @@ abstract class AbstractIndex[K, V](@volatile var file: File, val baseOffset: Lon
 
   protected val lock = new ReentrantLock
 
-  @volatile
-  protected var mmap: MappedByteBuffer = {
-    val newlyCreated = file.createNewFile()
-    val raf = if (writable) new RandomAccessFile(file, "rw") else new RandomAccessFile(file, "r")
+
+
+  protected def init(f: File): MappedByteBuffer = {
+
+    val newlyCreated = f.createNewFile()
+    val raf = if (writable) new RandomAccessFile(f, "rw") else new RandomAccessFile(f, "r")
     try {
       /* pre-allocate the file if necessary */
       if(newlyCreated) {
@@ -77,6 +79,15 @@ abstract class AbstractIndex[K, V](@volatile var file: File, val baseOffset: Lon
       idx
     } finally {
       CoreUtils.swallow(raf.close(), this)
+    }
+  }
+
+  @volatile
+  protected var mmap: MappedByteBuffer = init(file)
+
+  def openHandler(f: File): Unit = {
+    inLock(lock) {
+      mmap = init(f)
     }
   }
 
@@ -146,6 +157,7 @@ abstract class AbstractIndex[K, V](@volatile var file: File, val baseOffset: Lon
     try{ 
       closeHandler()
       Utils.atomicMoveWithFallback(file.toPath, f.toPath)
+      openHandler(new java.io.File(f.toPath.toString))
     } 
     finally file = f
   }
@@ -257,7 +269,7 @@ abstract class AbstractIndex[K, V](@volatile var file: File, val baseOffset: Lon
     try fun
     finally {
       if (OperatingSystem.IS_WINDOWS)
-        lock.unlock()
+        lock.unlock()//
     }
   }
 

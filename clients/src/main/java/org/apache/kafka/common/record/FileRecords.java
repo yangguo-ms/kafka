@@ -47,7 +47,7 @@ public class FileRecords extends AbstractRecords implements Closeable {
 
     // mutable state
     private final AtomicInteger size;
-    private final FileChannel channel;
+    private FileChannel channel;
     private volatile File file;
 
     /**
@@ -177,6 +177,16 @@ public class FileRecords extends AbstractRecords implements Closeable {
         channel.close();
     }
 
+    @Override
+    public void reopen(File f)
+    {
+        try {
+            channel = openChannel(f, true, true, this.start, false);
+        }
+        catch (IOException e){
+
+        }
+    }
     /**
      * Delete this message set from the filesystem
      * @throws IOException if deletion fails due to an I/O error
@@ -211,6 +221,7 @@ public class FileRecords extends AbstractRecords implements Closeable {
         try {
             channel.close(); 
             Utils.atomicMoveWithFallback(file.toPath(), f.toPath());
+            reopen(new java.io.File(f.toPath().toString()));
         } finally {
             this.file = f;
         }

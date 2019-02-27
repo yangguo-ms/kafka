@@ -68,19 +68,19 @@ class LogSegment private[log] (val log: FileRecords,
   }
 
   def resizeIndexes(size: Int): Unit = {
-    offsetIndex.resize(size)
-    timeIndex.resize(size)
-  }
-
-  def sanityCheck(timeIndexFileNewlyCreated: Boolean): Unit = {
-    if (offsetIndex.file.exists) {
-      offsetIndex.sanityCheck()
-      // Resize the time index file to 0 if it is newly created.
-      if (timeIndexFileNewlyCreated)
-        timeIndex.resize(0)
-      timeIndex.sanityCheck()
-      txnIndex.sanityCheck()
+      offsetIndex.resize(size)
+      timeIndex.resize(size)
     }
+
+    def sanityCheck(timeIndexFileNewlyCreated: Boolean): Unit = {
+      if (offsetIndex.file.exists) {
+        offsetIndex.sanityCheck()
+        // Resize the time index file to 0 if it is newly created.
+        if (timeIndexFileNewlyCreated)
+          timeIndex.resize(0)
+        timeIndex.sanityCheck()
+        txnIndex.sanityCheck()
+      }
     else throw new NoSuchFileException(s"Offset index file ${offsetIndex.file.getAbsolutePath} does not exist")
   }
 
@@ -269,6 +269,7 @@ class LogSegment private[log] (val log: FileRecords,
     offsetIndex.reset()
     timeIndex.reset()
     txnIndex.reset()
+    log.reopen(log.file())
     var validBytes = 0
     var lastIndexEntry = 0
     maxTimestampSoFar = RecordBatch.NO_TIMESTAMP
@@ -503,6 +504,13 @@ class LogSegment private[log] (val log: FileRecords,
     CoreUtils.swallow(timeIndex.closeHandler(), this)
     CoreUtils.swallow(log.closeHandlers(), this)
     CoreUtils.swallow(txnIndex.close(), this)
+  }
+
+  def openHandlers(): Unit = {
+    CoreUtils.swallow(offsetIndex.openHandler(offsetIndex.file), this)
+    CoreUtils.swallow(timeIndex.openHandler(timeIndex.file), this)
+    CoreUtils.swallow(log.reopen(log.file()), this)
+    CoreUtils.swallow(txnIndex.openChannel(), this)
   }
 
   /**
