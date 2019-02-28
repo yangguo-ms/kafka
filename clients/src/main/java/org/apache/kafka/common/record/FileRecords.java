@@ -49,6 +49,7 @@ public class FileRecords extends AbstractRecords implements Closeable {
     private final AtomicInteger size;
     private FileChannel channel;
     private volatile File file;
+    private final String DeletedFileSuffix = ".deleted";
 
     /**
      * The {@code FileRecords.open} methods should be used instead of this constructor whenever possible.
@@ -219,9 +220,13 @@ public class FileRecords extends AbstractRecords implements Closeable {
      */
     public void renameTo(File f) throws IOException {
         try {
-            channel.close(); 
+            channel.close();
+
             Utils.atomicMoveWithFallback(file.toPath(), f.toPath());
-            reopen(new java.io.File(f.toPath().toString()));
+
+            if(!f.getName().endsWith(DeletedFileSuffix)){
+                reopen(new java.io.File(f.toPath().toString()));
+            }
         } finally {
             this.file = f;
         }
