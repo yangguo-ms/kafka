@@ -271,7 +271,6 @@ class LogSegment private[log] (val log: FileRecords,
     offsetIndex.reset()
     timeIndex.reset()
     txnIndex.reset()
-    log.reopen(log.file())
     var validBytes = 0
     var lastIndexEntry = 0
     maxTimestampSoFar = RecordBatch.NO_TIMESTAMP
