@@ -608,7 +608,6 @@ class Log(@volatile var dir: File,
     debug("Opening handlers")
     lock synchronized {
       logSegments.foreach(_.openHandlers())
-     // isMemoryMappedBufferClosed = false
     }
   }
 

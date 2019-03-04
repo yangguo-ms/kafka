@@ -288,7 +288,7 @@ abstract class AbstractIndex[K, V](@volatile var file: File, val baseOffset: Lon
     try fun
     finally {
       if (OperatingSystem.IS_WINDOWS)
-        lock.unlock()//
+        lock.unlock()
     }
   }
 
