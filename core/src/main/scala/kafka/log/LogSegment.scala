@@ -70,19 +70,19 @@ class LogSegment private[log] (val log: FileRecords,
   }
 
   def resizeIndexes(size: Int): Unit = {
-      offsetIndex.resize(size)
-      timeIndex.resize(size)
-    }
+    offsetIndex.resize(size)
+    timeIndex.resize(size)
+  }
 
-    def sanityCheck(timeIndexFileNewlyCreated: Boolean): Unit = {
-      if (offsetIndex.file.exists) {
-        offsetIndex.sanityCheck()
-        // Resize the time index file to 0 if it is newly created.
-        if (timeIndexFileNewlyCreated)
-          timeIndex.resize(0)
-        timeIndex.sanityCheck()
-        txnIndex.sanityCheck()
-      }
+  def sanityCheck(timeIndexFileNewlyCreated: Boolean): Unit = {
+    if (offsetIndex.file.exists) {
+      offsetIndex.sanityCheck()
+      // Resize the time index file to 0 if it is newly created.
+      if (timeIndexFileNewlyCreated)
+        timeIndex.resize(0)
+      timeIndex.sanityCheck()
+      txnIndex.sanityCheck()
+    }
     else throw new NoSuchFileException(s"Offset index file ${offsetIndex.file.getAbsolutePath} does not exist")
   }
 
@@ -508,19 +508,19 @@ class LogSegment private[log] (val log: FileRecords,
   }
 
   def openHandlers(): Unit = {
-    if(!offsetIndex.file.getName.endsWith(".deleted")){
+    if(!offsetIndex.file.getName.endsWith(DeletedFileSuffix)){
       CoreUtils.swallow(offsetIndex.openHandler(offsetIndex.file), this)
     }
 
-    if(!timeIndex.file.getName.endsWith(".deleted")){
+    if(!timeIndex.file.getName.endsWith(DeletedFileSuffix)){
       CoreUtils.swallow(timeIndex.openHandler(timeIndex.file), this)
     }
 
-    if(!log.file().getName.endsWith(".deleted")){
+    if(!log.file().getName.endsWith(DeletedFileSuffix)){
       CoreUtils.swallow(log.reopen(log.file()), this)
     }
 
-    if(!txnIndex.file.getName.endsWith(".deleted")){
+    if(!txnIndex.file.getName.endsWith(DeletedFileSuffix)){
       CoreUtils.swallow(txnIndex.openChannel(), this)
     }
   }

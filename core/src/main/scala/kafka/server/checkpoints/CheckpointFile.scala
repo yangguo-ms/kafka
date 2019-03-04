@@ -23,7 +23,7 @@ import java.nio.file.{FileAlreadyExistsException, Files, Paths}
 import kafka.server.LogDirFailureChannel
 import kafka.utils.Logging
 import org.apache.kafka.common.errors.KafkaStorageException
-import org.apache.kafka.common.utils.Utils
+import org.apache.kafka.common.utils.{OperatingSystem, Utils}
 
 import scala.collection.{Seq, mutable}
 
@@ -66,8 +66,12 @@ class CheckpointFile[T](val file: File,
           writer.flush()
           fileOutputStream.getFD().sync()
         } finally {
+
           writer.close()
-          Utils.closeQuietly(fileOutputStream, tempPath.toString)
+
+          if(OperatingSystem.IS_WINDOWS){
+            Utils.closeQuietly(fileOutputStream, tempPath.toString)
+          }
         }
 
         Utils.atomicMoveWithFallback(tempPath, path)

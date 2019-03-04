@@ -225,7 +225,9 @@ abstract class AbstractIndex[K, V](@volatile var file: File, val baseOffset: Lon
   /** Close the index */
   def close() {
     trimToValidSize()
-    closeHandler()
+    if(OperatingSystem.IS_WINDOWS){
+      closeHandler()
+    }
   }
 
   def closeHandler(): Unit = {

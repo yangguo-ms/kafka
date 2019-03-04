@@ -24,7 +24,7 @@ import java.util.concurrent.atomic._
 import java.util.concurrent.{ConcurrentNavigableMap, ConcurrentSkipListMap, TimeUnit}
 
 import kafka.api.KAFKA_0_10_0_IV0
-import kafka.common.{InvalidOffsetException, KafkaException, LongRef, UnexpectedAppendOffsetException, OffsetsOutOfOrderException}
+import kafka.common.{InvalidOffsetException, KafkaException, LongRef, OffsetsOutOfOrderException, UnexpectedAppendOffsetException}
 import kafka.metrics.KafkaMetricsGroup
 import kafka.server.{BrokerTopicStats, FetchDataInfo, LogDirFailureChannel, LogOffsetMetadata}
 import kafka.utils._
@@ -36,7 +36,7 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 import scala.collection.{Seq, Set, mutable}
 import com.yammer.metrics.core.Gauge
-import org.apache.kafka.common.utils.{Time, Utils}
+import org.apache.kafka.common.utils.{OperatingSystem, Time, Utils}
 import kafka.message.{BrokerCompressionCodec, CompressionCodec, NoCompressionCodec}
 import kafka.server.checkpoints.{LeaderEpochCheckpointFile, LeaderEpochFile}
 import kafka.server.epoch.{LeaderEpochCache, LeaderEpochFileCache}
@@ -577,7 +577,9 @@ class Log(@volatile var dir: File,
       maybeHandleIOException(s"Error while renaming dir for $topicPartition in log dir ${dir.getParent}") {
         val renamedDir = new File(dir.getParent, name)
 
-        close()
+        if(OperatingSystem.IS_WINDOWS){
+          close()
+        }
 
         Utils.atomicMoveWithFallback(dir.toPath, renamedDir.toPath)
         if (renamedDir != dir) {
@@ -588,7 +590,10 @@ class Log(@volatile var dir: File,
           // the checkpoint file in renamed log directory
           _leaderEpochCache = initializeLeaderEpochCache()
         }
-        openHandlers()
+
+        if(OperatingSystem.IS_WINDOWS){
+          openHandlers()
+        }
       }
     }
   }
@@ -1627,8 +1632,13 @@ class Log(@volatile var dir: File,
    * @throws IOException if the file can't be renamed and still exists
    */
   private def asyncDeleteSegment(segment: LogSegment) {
-    segment.close()
+
+    if(OperatingSystem.IS_WINDOWS){
+      segment.close()
+    }
+
     segment.changeFileSuffixes("", Log.DeletedFileSuffix)
+
     def deleteSeg() {
       info(s"Deleting segment ${segment.baseOffset}")
       maybeHandleIOException(s"Error while deleting segments for $topicPartition in dir ${dir.getParent}") {

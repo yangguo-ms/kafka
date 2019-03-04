@@ -24,7 +24,7 @@ import java.nio.file.{Files, StandardOpenOption}
 import kafka.utils.{Logging, nonthreadsafe}
 import org.apache.kafka.common.KafkaException
 import org.apache.kafka.common.requests.FetchResponse.AbortedTransaction
-import org.apache.kafka.common.utils.Utils
+import org.apache.kafka.common.utils.{OperatingSystem, Utils}
 
 import scala.collection.mutable.ListBuffer
 
@@ -46,6 +46,8 @@ class TransactionIndex(val startOffset: Long, @volatile var file: File) extends 
   // note that the file is not created until we need it
   @volatile private var maybeChannel: Option[FileChannel] = None
   private var lastOffset: Option[Long] = None
+
+  val DeletedFileSuffix = ".deleted"
 
   if (file.exists)
     openChannel()
@@ -104,8 +106,20 @@ class TransactionIndex(val startOffset: Long, @volatile var file: File) extends 
   def renameTo(f: File): Unit = {
     try {
       if (file.exists) {
-        close()
+        if(OperatingSystem.IS_WINDOWS){
+          close()
+        }
+
         Utils.atomicMoveWithFallback(file.toPath, f.toPath)
+
+        if(OperatingSystem.IS_WINDOWS){
+          if(!f.getName.endsWith(DeletedFileSuffix)){
+            openChannel()
+          }
+          else{
+            logger.info("handler to deleted file will NOT be reopened.");
+          }
+        }
       }
     } finally {
       file = f

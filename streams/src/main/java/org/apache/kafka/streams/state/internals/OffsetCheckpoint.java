@@ -17,6 +17,7 @@
 package org.apache.kafka.streams.state.internals;
 
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.utils.OperatingSystem;
 import org.apache.kafka.common.utils.Utils;
 
 import java.io.BufferedReader;
@@ -88,7 +89,9 @@ public class OffsetCheckpoint {
                 writer.flush();
                 fileOutputStream.getFD().sync();
             } finally {
-                Utils.closeQuietly(fileOutputStream, temp.getName());
+                if(OperatingSystem.IS_WINDOWS){
+                    Utils.closeQuietly(fileOutputStream, temp.getName());
+                }
             }
 
             Utils.atomicMoveWithFallback(temp.toPath(), file.toPath());
