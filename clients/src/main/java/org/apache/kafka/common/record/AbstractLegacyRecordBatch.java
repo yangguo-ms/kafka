@@ -428,8 +428,6 @@ public abstract class AbstractLegacyRecordBatch extends AbstractRecordBatch impl
             return record;
         }
 
-//        public void reopen() {         }
-
         @Override
         public boolean equals(Object o) {
             if (this == o)
