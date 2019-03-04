@@ -19,8 +19,11 @@ package org.apache.kafka.common.record;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.network.TransportLayer;
 import org.apache.kafka.common.record.FileLogInputStream.FileChannelRecordBatch;
+import org.apache.kafka.common.utils.OperatingSystem;
 import org.apache.kafka.common.utils.Time;
 import org.apache.kafka.common.utils.Utils;
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
+import sun.rmi.runtime.Log;
 
 import java.io.Closeable;
 import java.io.File;
@@ -179,13 +182,16 @@ public class FileRecords extends AbstractRecords implements Closeable {
     }
 
     @Override
-    public void reopen(File f)
-    {
-        try {
-            channel = openChannel(f, true, true, this.start, false);
+    public void reopen(File f) {
+        if(OperatingSystem.IS_WINDOWS){
+            try {
+                channel = openChannel(f, true, true, this.start, false);
+            }
+            catch (IOException e){
+            }
         }
-        catch (IOException e){
-
+        else{
+            throw new NotImplementedException();
         }
     }
     /**
@@ -220,12 +226,17 @@ public class FileRecords extends AbstractRecords implements Closeable {
      */
     public void renameTo(File f) throws IOException {
         try {
-            channel.close();
+            if(OperatingSystem.IS_WINDOWS){
+                channel.close();
 
-            Utils.atomicMoveWithFallback(file.toPath(), f.toPath());
+                Utils.atomicMoveWithFallback(file.toPath(), f.toPath());
 
-            if(!f.getName().endsWith(DeletedFileSuffix)){
-                reopen(new java.io.File(f.toPath().toString()));
+                if(!f.getName().endsWith(DeletedFileSuffix)){
+                    reopen(new java.io.File(f.toPath().toString()));
+                }
+            }
+            else{
+                Utils.atomicMoveWithFallback(file.toPath(), f.toPath());
             }
         } finally {
             this.file = f;

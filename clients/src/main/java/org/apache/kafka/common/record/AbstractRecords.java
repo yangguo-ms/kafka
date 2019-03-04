@@ -18,8 +18,10 @@ package org.apache.kafka.common.record;
 
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.utils.AbstractIterator;
+import org.apache.kafka.common.utils.OperatingSystem;
 import org.apache.kafka.common.utils.Time;
 import org.apache.kafka.common.utils.Utils;
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.File;
 import java.nio.ByteBuffer;
@@ -52,7 +54,15 @@ public abstract class AbstractRecords implements Records {
         return true;
     }
 
-    public void reopen(File f){}
+    /**
+     * Under Windows, its file handler needs be closed before a file can be renamed, moved or deleted.
+     * @param f the fle to be reopened
+     */
+    public void reopen(File f){
+        if(!OperatingSystem.IS_WINDOWS){
+            throw new NotImplementedException();
+        }
+    }
 
     /**
      * Down convert batches to the provided message format version. The first offset parameter is only relevant in the

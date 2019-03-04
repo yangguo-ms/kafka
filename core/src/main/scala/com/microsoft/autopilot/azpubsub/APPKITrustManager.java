@@ -20,7 +20,7 @@ public class APPKITrustManager implements X509TrustManager  {
     private static final int defaultAuthExpireMinutes = 15;
     private static final int defaultNoAuthExpireMinutes = 1;
 
-    private String serverAcl = "APMF\\AzPubSub.Autopilot.*";
+    private String serverAcl = "APMF\\AzPubSub.*.*";
 
     @Override
     public void checkClientTrusted(X509Certificate[] chain, String authType)

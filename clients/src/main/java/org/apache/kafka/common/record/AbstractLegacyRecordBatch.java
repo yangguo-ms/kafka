@@ -428,9 +428,7 @@ public abstract class AbstractLegacyRecordBatch extends AbstractRecordBatch impl
             return record;
         }
 
-        public void reopen() {
-
-        }
+//        public void reopen() {         }
 
         @Override
         public boolean equals(Object o) {
@@ -463,9 +461,6 @@ public abstract class AbstractLegacyRecordBatch extends AbstractRecordBatch impl
             this.record = new LegacyRecord(buffer.slice());
             buffer.position(OFFSET_OFFSET);
         }
-
-        @Override
-        public void reopen(){}
 
         @Override
         public long offset() {

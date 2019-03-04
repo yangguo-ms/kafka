@@ -106,9 +106,6 @@ public class DefaultRecord implements Record {
     }
 
     @Override
-    public void reopen(){}
-
-    @Override
     public int sizeInBytes() {
         return sizeInBytes;
     }

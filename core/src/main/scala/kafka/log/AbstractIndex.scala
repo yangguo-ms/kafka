@@ -159,16 +159,22 @@ abstract class AbstractIndex[K, V](@volatile var file: File, val baseOffset: Lon
    * @throws IOException if rename fails
    */
   def renameTo(f: File) {
-    try{ 
-      closeHandler()
+    try{
+      if(OperatingSystem.IS_WINDOWS){
 
-      Utils.atomicMoveWithFallback(file.toPath, f.toPath)
+        closeHandler()
 
-      if(!f.getName.endsWith(DeletedFileSuffix)){
-        openHandler(new java.io.File(f.toPath.toString))
+        Utils.atomicMoveWithFallback(file.toPath, f.toPath)
+
+        if(!f.getName.endsWith(DeletedFileSuffix)){
+          openHandler(new java.io.File(f.toPath.toString))
+        }
+        else{
+          logger.info("handler to deleted file will NOT be reopened.");
+        }
       }
       else{
-        logger.info("handler to deleted file will NOT be reopened.");
+        Utils.atomicMoveWithFallback(file.toPath, f.toPath)
       }
     }
     finally file = f
@@ -219,6 +225,7 @@ abstract class AbstractIndex[K, V](@volatile var file: File, val baseOffset: Lon
   /** Close the index */
   def close() {
     trimToValidSize()
+    closeHandler()
   }
 
   def closeHandler(): Unit = {
