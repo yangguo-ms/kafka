@@ -60,8 +60,6 @@ class LogSegment private[log] (val log: FileRecords,
                                val maxSegmentBytes: Int,
                                val time: Time) extends Logging {
 
-  val DeletedFileSuffix = ".deleted"
-
   def shouldRoll(messagesSize: Int, maxTimestampInMessages: Long, maxOffsetInMessages: Long, now: Long): Boolean = {
     val reachedRollMs = timeWaitedForRoll(now, maxTimestampInMessages) > maxSegmentMs - rollJitterMs
     size > maxSegmentBytes - messagesSize ||
@@ -508,19 +506,19 @@ class LogSegment private[log] (val log: FileRecords,
   }
 
   def openHandlers(): Unit = {
-    if(!offsetIndex.file.getName.endsWith(DeletedFileSuffix)){
+    if(!offsetIndex.file.getName.endsWith(Log.DeletedFileSuffix)){
       CoreUtils.swallow(offsetIndex.openHandler(offsetIndex.file), this)
     }
 
-    if(!timeIndex.file.getName.endsWith(DeletedFileSuffix)){
+    if(!timeIndex.file.getName.endsWith(Log.DeletedFileSuffix)){
       CoreUtils.swallow(timeIndex.openHandler(timeIndex.file), this)
     }
 
-    if(!log.file().getName.endsWith(DeletedFileSuffix)){
+    if(!log.file().getName.endsWith(Log.DeletedFileSuffix)){
       CoreUtils.swallow(log.reopen(log.file()), this)
     }
 
-    if(!txnIndex.file.getName.endsWith(DeletedFileSuffix)){
+    if(!txnIndex.file.getName.endsWith(Log.DeletedFileSuffix)){
       CoreUtils.swallow(txnIndex.openChannel(), this)
     }
   }

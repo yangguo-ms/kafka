@@ -89,9 +89,7 @@ public class OffsetCheckpoint {
                 writer.flush();
                 fileOutputStream.getFD().sync();
             } finally {
-                if(OperatingSystem.IS_WINDOWS){
-                    Utils.closeQuietly(fileOutputStream, temp.getName());
-                }
+              Utils.closeQuietly(fileOutputStream, temp.getName());
             }
 
             Utils.atomicMoveWithFallback(temp.toPath(), file.toPath());

@@ -48,11 +48,6 @@ abstract class AbstractIndex[K, V](@volatile var file: File, val baseOffset: Lon
 
   protected val lock = new ReentrantLock
 
-
-  /** a file that is scheduled to be deleted */
-  val DeletedFileSuffix = ".deleted"
-
-
   protected def init(f: File): MappedByteBuffer = {
 
     val newlyCreated = f.createNewFile()
@@ -90,7 +85,7 @@ abstract class AbstractIndex[K, V](@volatile var file: File, val baseOffset: Lon
 
   def openHandler(f: File): Unit = {
     inLock(lock) {
-      if(!file.getName.endsWith(DeletedFileSuffix)){
+      if(!file.getName.endsWith(Log.DeletedFileSuffix)){
         mmap = init(f)
       }
     }
@@ -166,7 +161,7 @@ abstract class AbstractIndex[K, V](@volatile var file: File, val baseOffset: Lon
 
         Utils.atomicMoveWithFallback(file.toPath, f.toPath)
 
-        if(!f.getName.endsWith(DeletedFileSuffix)){
+        if(!f.getName.endsWith(Log.DeletedFileSuffix)){
           openHandler(new java.io.File(f.toPath.toString))
         }
         else{
@@ -225,9 +220,7 @@ abstract class AbstractIndex[K, V](@volatile var file: File, val baseOffset: Lon
   /** Close the index */
   def close() {
     trimToValidSize()
-    if(OperatingSystem.IS_WINDOWS){
-      closeHandler()
-    }
+    closeHandler()
   }
 
   def closeHandler(): Unit = {

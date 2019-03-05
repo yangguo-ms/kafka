@@ -591,7 +591,7 @@ class Log(@volatile var dir: File,
           _leaderEpochCache = initializeLeaderEpochCache()
         }
 
-        if(OperatingSystem.IS_WINDOWS){
+        if(OperatingSystem.IS_WINDOWS && !renamedDir.toPath.endsWith(Log.DeletedFileSuffix)){
           openHandlers()
         }
       }

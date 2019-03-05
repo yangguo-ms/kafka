@@ -68,10 +68,7 @@ class CheckpointFile[T](val file: File,
         } finally {
 
           writer.close()
-
-          if(OperatingSystem.IS_WINDOWS){
-            Utils.closeQuietly(fileOutputStream, tempPath.toString)
-          }
+          Utils.closeQuietly(fileOutputStream, tempPath.toString)
         }
 
         Utils.atomicMoveWithFallback(tempPath, path)

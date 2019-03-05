@@ -47,8 +47,6 @@ class TransactionIndex(val startOffset: Long, @volatile var file: File) extends 
   @volatile private var maybeChannel: Option[FileChannel] = None
   private var lastOffset: Option[Long] = None
 
-  val DeletedFileSuffix = ".deleted"
-
   if (file.exists)
     openChannel()
 
@@ -112,13 +110,8 @@ class TransactionIndex(val startOffset: Long, @volatile var file: File) extends 
 
         Utils.atomicMoveWithFallback(file.toPath, f.toPath)
 
-        if(OperatingSystem.IS_WINDOWS){
-          if(!f.getName.endsWith(DeletedFileSuffix)){
-            openChannel()
-          }
-          else{
-            logger.info("handler to deleted file will NOT be reopened.");
-          }
+        if(OperatingSystem.IS_WINDOWS && !f.getName.endsWith(Log.DeletedFileSuffix)){
+          openChannel()
         }
       }
     } finally {
