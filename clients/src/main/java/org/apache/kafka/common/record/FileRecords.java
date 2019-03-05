@@ -190,9 +190,6 @@ public class FileRecords extends AbstractRecords implements Closeable {
             catch (IOException e){
             }
         }
-        else{
-            throw new NotImplementedException();
-        }
     }
     /**
      * Delete this message set from the filesystem
