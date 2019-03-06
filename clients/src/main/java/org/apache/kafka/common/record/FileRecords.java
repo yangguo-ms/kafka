@@ -19,9 +19,9 @@ package org.apache.kafka.common.record;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.network.TransportLayer;
 import org.apache.kafka.common.record.FileLogInputStream.FileChannelRecordBatch;
+import org.apache.kafka.common.utils.OperatingSystem;
 import org.apache.kafka.common.utils.Time;
 import org.apache.kafka.common.utils.Utils;
-
 import java.io.Closeable;
 import java.io.File;
 import java.io.FileInputStream;
@@ -47,8 +47,9 @@ public class FileRecords extends AbstractRecords implements Closeable {
 
     // mutable state
     private final AtomicInteger size;
-    private final FileChannel channel;
+    private FileChannel channel;
     private volatile File file;
+    private final String DeletedFileSuffix = ".deleted";
 
     /**
      * The {@code FileRecords.open} methods should be used instead of this constructor whenever possible.
@@ -178,6 +179,13 @@ public class FileRecords extends AbstractRecords implements Closeable {
     }
 
     /**
+     * Re-OPens a file handler
+     */
+    public void reopen(File f) throws IOException {
+        channel = openChannel(f, true, true, this.start, false);
+    }
+
+    /**
      * Delete this message set from the filesystem
      * @throws IOException if deletion fails due to an I/O error
      * @return  {@code true} if the file was deleted by this method; {@code false} if the file could not be deleted
@@ -209,8 +217,17 @@ public class FileRecords extends AbstractRecords implements Closeable {
      */
     public void renameTo(File f) throws IOException {
         try {
-            channel.close(); 
-            Utils.atomicMoveWithFallback(file.toPath(), f.toPath());
+            if(OperatingSystem.IS_WINDOWS) {
+                channel.close();
+
+                Utils.atomicMoveWithFallback(file.toPath(), f.toPath());
+
+                if(!f.getName().endsWith(DeletedFileSuffix))
+                    reopen(new java.io.File(f.toPath().toString()));
+
+            } else {
+                Utils.atomicMoveWithFallback(file.toPath(), f.toPath());
+            }
         } finally {
             this.file = f;
         }
