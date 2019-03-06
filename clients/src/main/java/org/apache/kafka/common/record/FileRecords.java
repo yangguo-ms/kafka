@@ -22,9 +22,6 @@ import org.apache.kafka.common.record.FileLogInputStream.FileChannelRecordBatch;
 import org.apache.kafka.common.utils.OperatingSystem;
 import org.apache.kafka.common.utils.Time;
 import org.apache.kafka.common.utils.Utils;
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
-import sun.rmi.runtime.Log;
-
 import java.io.Closeable;
 import java.io.File;
 import java.io.FileInputStream;
@@ -181,16 +178,13 @@ public class FileRecords extends AbstractRecords implements Closeable {
         channel.close();
     }
 
-    @Override
-    public void reopen(File f) {
-        if(OperatingSystem.IS_WINDOWS){
-            try {
-                channel = openChannel(f, true, true, this.start, false);
-            }
-            catch (IOException e){
-            }
-        }
+    /**
+     * Re-OPens a file handler
+     */
+    public void reopen(File f) throws IOException {
+        channel = openChannel(f, true, true, this.start, false);
     }
+
     /**
      * Delete this message set from the filesystem
      * @throws IOException if deletion fails due to an I/O error
@@ -223,16 +217,15 @@ public class FileRecords extends AbstractRecords implements Closeable {
      */
     public void renameTo(File f) throws IOException {
         try {
-            if(OperatingSystem.IS_WINDOWS){
+            if(OperatingSystem.IS_WINDOWS) {
                 channel.close();
 
                 Utils.atomicMoveWithFallback(file.toPath(), f.toPath());
 
-                if(!f.getName().endsWith(DeletedFileSuffix)){
+                if(!f.getName().endsWith(DeletedFileSuffix))
                     reopen(new java.io.File(f.toPath().toString()));
-                }
-            }
-            else{
+
+            } else {
                 Utils.atomicMoveWithFallback(file.toPath(), f.toPath());
             }
         } finally {

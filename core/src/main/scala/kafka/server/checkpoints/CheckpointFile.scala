@@ -23,7 +23,7 @@ import java.nio.file.{FileAlreadyExistsException, Files, Paths}
 import kafka.server.LogDirFailureChannel
 import kafka.utils.Logging
 import org.apache.kafka.common.errors.KafkaStorageException
-import org.apache.kafka.common.utils.{OperatingSystem, Utils}
+import org.apache.kafka.common.utils.Utils
 
 import scala.collection.{Seq, mutable}
 

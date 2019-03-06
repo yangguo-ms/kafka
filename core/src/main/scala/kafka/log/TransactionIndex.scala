@@ -104,15 +104,13 @@ class TransactionIndex(val startOffset: Long, @volatile var file: File) extends 
   def renameTo(f: File): Unit = {
     try {
       if (file.exists) {
-        if(OperatingSystem.IS_WINDOWS){
+        if(OperatingSystem.IS_WINDOWS)
           close()
-        }
 
         Utils.atomicMoveWithFallback(file.toPath, f.toPath)
 
-        if(OperatingSystem.IS_WINDOWS && !f.getName.endsWith(Log.DeletedFileSuffix)){
+        if(OperatingSystem.IS_WINDOWS && !f.getName.endsWith(Log.DeletedFileSuffix))
           openChannel()
-        }
       }
     } finally {
       file = f

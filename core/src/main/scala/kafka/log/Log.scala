@@ -577,7 +577,7 @@ class Log(@volatile var dir: File,
       maybeHandleIOException(s"Error while renaming dir for $topicPartition in log dir ${dir.getParent}") {
         val renamedDir = new File(dir.getParent, name)
 
-        if(OperatingSystem.IS_WINDOWS){
+        if(OperatingSystem.IS_WINDOWS) {
           close()
         }
 
@@ -591,7 +591,7 @@ class Log(@volatile var dir: File,
           _leaderEpochCache = initializeLeaderEpochCache()
         }
 
-        if(OperatingSystem.IS_WINDOWS && !renamedDir.toPath.toString.endsWith(Log.DeleteDirSuffix)){
+        if(OperatingSystem.IS_WINDOWS && !renamedDir.toPath.toString.endsWith(Log.DeleteDirSuffix)) {
           openHandlers()
         }
       }
@@ -1633,7 +1633,7 @@ class Log(@volatile var dir: File,
    */
   private def asyncDeleteSegment(segment: LogSegment) {
 
-    if(OperatingSystem.IS_WINDOWS){
+    if(OperatingSystem.IS_WINDOWS) {
       segment.close()
     }
 

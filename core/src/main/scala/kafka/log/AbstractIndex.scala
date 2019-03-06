@@ -85,7 +85,7 @@ abstract class AbstractIndex[K, V](@volatile var file: File, val baseOffset: Lon
 
   def openHandler(f: File): Unit = {
     inLock(lock) {
-      if(!file.getName.endsWith(Log.DeletedFileSuffix)){
+      if(!file.getName.endsWith(Log.DeletedFileSuffix)) {
         mmap = init(f)
       }
     }
@@ -155,20 +155,18 @@ abstract class AbstractIndex[K, V](@volatile var file: File, val baseOffset: Lon
    */
   def renameTo(f: File) {
     try{
-      if(OperatingSystem.IS_WINDOWS){
+      if(OperatingSystem.IS_WINDOWS) {
 
         closeHandler()
 
         Utils.atomicMoveWithFallback(file.toPath, f.toPath)
 
-        if(!f.getName.endsWith(Log.DeletedFileSuffix)){
+        if(!f.getName.endsWith(Log.DeletedFileSuffix)) {
           openHandler(new java.io.File(f.toPath.toString))
+        } else {
+          logger.info("Handler to deleted file will NOT be reopened.");
         }
-        else{
-          logger.info("handler to deleted file will NOT be reopened.");
-        }
-      }
-      else{
+      } else {
         Utils.atomicMoveWithFallback(file.toPath, f.toPath)
       }
     }

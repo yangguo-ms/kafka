@@ -506,21 +506,17 @@ class LogSegment private[log] (val log: FileRecords,
   }
 
   def openHandlers(): Unit = {
-    if(!offsetIndex.file.getName.endsWith(Log.DeletedFileSuffix)){
+    if(!offsetIndex.file.getName.endsWith(Log.DeletedFileSuffix))
       CoreUtils.swallow(offsetIndex.openHandler(offsetIndex.file), this)
-    }
 
-    if(!timeIndex.file.getName.endsWith(Log.DeletedFileSuffix)){
+    if(!timeIndex.file.getName.endsWith(Log.DeletedFileSuffix))
       CoreUtils.swallow(timeIndex.openHandler(timeIndex.file), this)
-    }
 
-    if(!log.file().getName.endsWith(Log.DeletedFileSuffix)){
+    if(!log.file().getName.endsWith(Log.DeletedFileSuffix))
       CoreUtils.swallow(log.reopen(log.file()), this)
-    }
 
-    if(!txnIndex.file.getName.endsWith(Log.DeletedFileSuffix)){
+    if(!txnIndex.file.getName.endsWith(Log.DeletedFileSuffix))
       CoreUtils.swallow(txnIndex.openChannel(), this)
-    }
   }
 
   /**
