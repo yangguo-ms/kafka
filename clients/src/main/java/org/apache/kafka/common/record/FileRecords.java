@@ -47,7 +47,7 @@ public class FileRecords extends AbstractRecords implements Closeable {
 
     // mutable state
     private final AtomicInteger size;
-    private FileChannel channel;
+    private volatile FileChannel channel;
     private volatile File file;
     private final String DeletedFileSuffix = ".deleted";
 

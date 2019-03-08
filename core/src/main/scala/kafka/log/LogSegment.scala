@@ -569,17 +569,44 @@ object LogSegment {
   def open(dir: File, baseOffset: Long, config: LogConfig, time: Time, fileAlreadyExists: Boolean = false,
            initFileSize: Int = 0, preallocate: Boolean = false, fileSuffix: String = ""): LogSegment = {
     val maxIndexSize = config.maxIndexSize
-    new LogSegment(
-      FileRecords.open(Log.logFile(dir, baseOffset, fileSuffix), fileAlreadyExists, initFileSize, preallocate),
-      new OffsetIndex(Log.offsetIndexFile(dir, baseOffset, fileSuffix), baseOffset = baseOffset, maxIndexSize = maxIndexSize),
-      new TimeIndex(Log.timeIndexFile(dir, baseOffset, fileSuffix), baseOffset = baseOffset, maxIndexSize = maxIndexSize),
-      new TransactionIndex(baseOffset, Log.transactionIndexFile(dir, baseOffset, fileSuffix)),
-      baseOffset,
-      indexIntervalBytes = config.indexInterval,
-      rollJitterMs = config.randomSegmentJitter,
-      maxSegmentMs = config.segmentMs,
-      maxSegmentBytes = config.segmentSize,
-      time)
+    var log: FileRecords = null
+    var offsetIdx: OffsetIndex = null
+    var timeIdx: TimeIndex = null
+    var txnIdx: TransactionIndex = null
+    try{
+      log = FileRecords.open(Log.logFile(dir, baseOffset, fileSuffix), fileAlreadyExists, initFileSize, preallocate)
+      offsetIdx = new OffsetIndex(Log.offsetIndexFile(dir, baseOffset, fileSuffix), baseOffset = baseOffset, maxIndexSize = maxIndexSize)
+      timeIdx = new TimeIndex(Log.timeIndexFile(dir, baseOffset, fileSuffix), baseOffset = baseOffset, maxIndexSize = maxIndexSize)
+      txnIdx = new TransactionIndex(baseOffset, Log.transactionIndexFile(dir, baseOffset, fileSuffix))
+      new LogSegment(
+        log,
+        offsetIdx,
+        timeIdx,
+        txnIdx,
+        baseOffset,
+        indexIntervalBytes = config.indexInterval,
+        rollJitterMs = config.randomSegmentJitter,
+        maxSegmentMs = config.segmentMs,
+        maxSegmentBytes = config.segmentSize,
+        time)
+    }
+    catch {
+      case ex: IOException => {
+        if(null != log){
+          log.close()
+        }
+        if(null != offsetIdx){
+          offsetIdx.close()
+        }
+        if(null != timeIdx){
+          timeIdx.close()
+        }
+        if(null != txnIdx){
+          txnIdx.close()
+        }
+        throw ex
+      }
+    }
   }
 
 }
