@@ -593,16 +593,16 @@ object LogSegment {
     catch {
       case ex: IOException => {
         if(null != log){
-          log.close()
+          log.deleteIfExists()
         }
         if(null != offsetIdx){
-          offsetIdx.close()
+          offsetIdx.deleteIfExists()
         }
         if(null != timeIdx){
-          timeIdx.close()
+          timeIdx.deleteIfExists()
         }
         if(null != txnIdx){
-          txnIdx.close()
+          txnIdx.deleteIfExists()
         }
         throw ex
       }
