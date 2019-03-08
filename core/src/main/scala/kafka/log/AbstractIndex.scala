@@ -164,7 +164,7 @@ abstract class AbstractIndex[K, V](@volatile var file: File, val baseOffset: Lon
         if(!f.getName.endsWith(Log.DeletedFileSuffix)) {
           openHandler(new java.io.File(f.toPath.toString))
         } else {
-          logger.info("Handler to deleted file will NOT be reopened.");
+          logger.debug("Handler to deleted file will NOT be reopened.");
         }
       } else {
         Utils.atomicMoveWithFallback(file.toPath, f.toPath)
