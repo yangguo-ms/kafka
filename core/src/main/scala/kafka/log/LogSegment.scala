@@ -591,18 +591,18 @@ object LogSegment {
         time)
     }
     catch {
-      case ex: IOException => {
-        if(null != log){
-          log.deleteIfExists()
+      case ex: Throwable=> {
+        if(fileAlreadyExists) {
+          if(null != log) log.close()
+          if(null != offsetIdx) offsetIdx.close()
+          if(null != timeIdx) timeIdx.close()
+          if(null != txnIdx) txnIdx.close()
         }
-        if(null != offsetIdx){
-          offsetIdx.deleteIfExists()
-        }
-        if(null != timeIdx){
-          timeIdx.deleteIfExists()
-        }
-        if(null != txnIdx){
-          txnIdx.deleteIfExists()
+        else {
+          if(null != log) log.deleteIfExists()
+          if(null != offsetIdx) offsetIdx.deleteIfExists()
+          if(null != timeIdx) timeIdx.deleteIfExists()
+          if(null != txnIdx) txnIdx.deleteIfExists()
         }
         throw ex
       }
