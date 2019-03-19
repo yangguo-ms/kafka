@@ -459,11 +459,17 @@ object ProducerStateManager extends Logging {
   private def deleteSnapshotFiles(dir: File, predicate: Long => Boolean = _ => true) {
     listSnapshotFiles(dir).filter(file => predicate(offsetFromFile(file))).foreach { file =>
       try{
+        info("In deleteSnapshotsBefore, trying to delete the snapshot file. It may throw IOException if two threads are deleting exactly the same file simultaneously.")
+
         Files.deleteIfExists(file.toPath)
       }
       catch {
         case e: IOException => {
-          warn(s"In deleteSnapshotFiles(), Exception happened to deleteIfExists when deleting snapshot file ${file}, error: ${e.getMessage}. Retrying. Sleep before deleteIfExists, thread Id: ${Thread.currentThread().getId}")
+          // Under multi-threading condition, each thread will get IOException if the threads are deleting the file simultaneously.
+          // This retry seems be redundant, even though the first deleteIfExists() above throw IOException, the file still gets deleted.
+          // But to make sure the snapshot will get deleted successfully, we're forcing each thread to sleep with different amount of time before the retry.
+
+          warn(s"In deleteSnapshotFiles(), Exception happened to deleteIfExists when deleting snapshot file ${file.toPath}, error: ${e.getMessage}. Retrying. Sleep before deleteIfExists, thread Id: ${Thread.currentThread().getId}")
           Thread.sleep(Thread.currentThread().getId % 107)
           Files.deleteIfExists(file.toPath)
         }
