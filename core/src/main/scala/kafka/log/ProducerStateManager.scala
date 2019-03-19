@@ -20,6 +20,7 @@ import java.io._
 import java.nio.ByteBuffer
 import java.nio.file.Files
 
+import com.typesafe.scalalogging.Logger
 import kafka.common.KafkaException
 import kafka.log.Log.offsetFromFile
 import kafka.server.LogOffsetMetadata
@@ -30,9 +31,11 @@ import org.apache.kafka.common.internals.Topic
 import org.apache.kafka.common.protocol.types._
 import org.apache.kafka.common.record.{ControlRecordType, EndTransactionMarker, RecordBatch}
 import org.apache.kafka.common.utils.{ByteUtils, Crc32C}
+import org.slf4j.LoggerFactory
 
 import scala.collection.mutable.ListBuffer
 import scala.collection.{immutable, mutable}
+import scala.util.Random
 
 class CorruptSnapshotException(msg: String) extends KafkaException(msg)
 
@@ -354,6 +357,7 @@ object ProducerStateManager {
   private val VersionOffset = 0
   private val CrcOffset = VersionOffset + 2
   private val ProducerEntriesOffset = CrcOffset + 4
+  protected lazy val logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   val ProducerSnapshotEntrySchema = new Schema(
     new Field(ProducerIdField, Type.INT64, "The producer ID"),
@@ -455,7 +459,18 @@ object ProducerStateManager {
 
   private def deleteSnapshotFiles(dir: File, predicate: Long => Boolean = _ => true) {
     listSnapshotFiles(dir).filter(file => predicate(offsetFromFile(file))).foreach { file =>
-      Files.deleteIfExists(file.toPath)
+      try{
+        logger.info(s"Sleep before deleteIfExists, thread Id: ${Thread.currentThread().getId}")
+        Thread.sleep(Thread.currentThread().getId % 200)
+        Files.deleteIfExists(file.toPath)
+      }
+      catch {
+        case e: IOException => {
+          logger.warn(s"Exception happened to deleteIfExists, error: ${e.getMessage}. Retrying. Sleep before deleteIfExists, thread Id: ${Thread.currentThread().getId}")
+          Thread.sleep(Thread.currentThread().getId % 200)
+          Files.deleteIfExists(file.toPath)
+        }
+      }
     }
   }
 
