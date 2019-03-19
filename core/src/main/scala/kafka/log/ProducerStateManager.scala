@@ -455,10 +455,9 @@ object ProducerStateManager extends Logging {
   private def deleteSnapshotFiles(dir: File, predicate: Long => Boolean = _ => true) {
     listSnapshotFiles(dir).filter(file => predicate(offsetFromFile(file))).foreach { file =>
       val sleepTimeInMs = Thread.currentThread().getId % 107
-      try{
+      try {
         Files.deleteIfExists(file.toPath)
-      }
-      catch {
+      } catch {
         case e: IOException => {
           // Under multi-threading condition, each thread will get IOException if the threads are deleting the file simultaneously.
           // This retry seems be redundant, even though the first deleteIfExists() above throw IOException, the file still gets deleted.
