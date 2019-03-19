@@ -314,7 +314,7 @@ class Log(@volatile var dir: File,
   }
 
   // This method does not need to convert IOException to KafkaStorageException because it is only called before all logs are loaded
-  private def loadSegmentFiles(swapFiles: Set[File]): Unit = {
+  private def loadSegmentFiles(): Unit = {
     // load segments in ascending order because transactional data from one segment may depend on the
     // segments that come before it
     for (file <- dir.listFiles.sortBy(_.getName) if file.isFile) {
@@ -326,7 +326,7 @@ class Log(@volatile var dir: File,
           warn(s"Found an orphaned index file ${file.getAbsolutePath}, with no corresponding log file.")
           Files.deleteIfExists(file.toPath)
         }
-      } else if (isLogFile(file) && !swapFiles.contains(new File(file.toPath.toString + SwapFileSuffix))) {
+      } else if (isLogFile(file)) {
         // if it's a log file, load the corresponding log segment
         val baseOffset = offsetFromFile(file)
         val timeIndexFileNewlyCreated = !Log.timeIndexFile(dir, baseOffset).exists()
@@ -400,7 +400,7 @@ class Log(@volatile var dir: File,
     val swapFiles = removeTempFilesAndCollectSwapFiles()
 
     // now do a second pass and load all the log and index files
-    loadSegmentFiles(swapFiles)
+    loadSegmentFiles()
 
     // Finally, complete any interrupted swap operations. To be crash-safe,
     // log files that are replaced by the swap segment should be renamed to .deleted
