@@ -340,7 +340,7 @@ private[log] class ProducerAppendInfo(val producerId: Long,
   }
 }
 
-object ProducerStateManager {
+object ProducerStateManager extends Logging {
   private val ProducerSnapshotVersion: Short = 1
   private val VersionField = "version"
   private val CrcField = "crc"
@@ -357,7 +357,6 @@ object ProducerStateManager {
   private val VersionOffset = 0
   private val CrcOffset = VersionOffset + 2
   private val ProducerEntriesOffset = CrcOffset + 4
-  protected lazy val logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   val ProducerSnapshotEntrySchema = new Schema(
     new Field(ProducerIdField, Type.INT64, "The producer ID"),
@@ -460,14 +459,12 @@ object ProducerStateManager {
   private def deleteSnapshotFiles(dir: File, predicate: Long => Boolean = _ => true) {
     listSnapshotFiles(dir).filter(file => predicate(offsetFromFile(file))).foreach { file =>
       try{
-        logger.info(s"Sleep before deleteIfExists, thread Id: ${Thread.currentThread().getId}")
-        Thread.sleep(Thread.currentThread().getId % 200)
         Files.deleteIfExists(file.toPath)
       }
       catch {
         case e: IOException => {
-          logger.warn(s"Exception happened to deleteIfExists, error: ${e.getMessage}. Retrying. Sleep before deleteIfExists, thread Id: ${Thread.currentThread().getId}")
-          Thread.sleep(Thread.currentThread().getId % 200)
+          warn(s"In deleteSnapshotFiles(), Exception happened to deleteIfExists when deleting snapshot file ${file}, error: ${e.getMessage}. Retrying. Sleep before deleteIfExists, thread Id: ${Thread.currentThread().getId}")
+          Thread.sleep(Thread.currentThread().getId % 107)
           Files.deleteIfExists(file.toPath)
         }
       }
