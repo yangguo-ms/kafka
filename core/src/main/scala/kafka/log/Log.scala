@@ -387,7 +387,18 @@ class Log(@volatile var dir: File,
         fileSuffix = SwapFileSuffix)
       info(s"Found log file ${swapFile.getPath} from interrupted swap operation, repairing.")
       recoverSegment(swapSegment)
-      val oldSegments = logSegments(swapSegment.baseOffset, swapSegment.readNextOffset)
+
+      // Assigned to a new value
+      val nextOffset = swapSegment.readNextOffset
+      var oldSegments = logSegments(swapSegment.baseOffset, nextOffset)
+
+      // This means swap file is empty. Because of that baseOffset and nextOffset is the same.
+      // logSegments method above would return empty list. Here we are making sure that
+      // the segment with the baseOffset is returned as well.
+      if(oldSegments.isEmpty && segments.containsKey(swapSegment.baseOffset)) {
+        oldSegments = Iterable(segments.get(swapSegment.baseOffset))
+      }
+
       replaceSegments(swapSegment, oldSegments.toSeq, isRecoveredSwapFile = true)
     }
   }
