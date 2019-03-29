@@ -22,7 +22,9 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.StreamsMetrics;
 import org.apache.kafka.streams.processor.TaskId;
+import org.apache.kafka.streams.processor.internals.metrics.StreamsMetricsImpl;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -53,11 +55,10 @@ public class StandbyTask extends AbstractTask {
                 final Consumer<byte[], byte[]> consumer,
                 final ChangelogReader changelogReader,
                 final StreamsConfig config,
-                final StreamsMetrics metrics,
+                final StreamsMetricsImpl metrics,
                 final StateDirectory stateDirectory) {
         super(id, partitions, topology, consumer, changelogReader, true, stateDirectory, config);
 
-        // initialize the topology with its own context
         processorContext = new StandbyContextImpl(id, config, stateMgr, metrics);
     }
 
@@ -66,7 +67,7 @@ public class StandbyTask extends AbstractTask {
         log.trace("Initializing state stores");
         registerStateStores();
         checkpointedOffsets = Collections.unmodifiableMap(stateMgr.checkpointed());
-        processorContext.initialized();
+        processorContext.initialize();
         taskInitialized = true;
         return true;
     }
@@ -100,6 +101,8 @@ public class StandbyTask extends AbstractTask {
         flushAndCheckpointState();
         // reinitialize offset limits
         updateOffsetLimits();
+
+        commitNeeded = false;
     }
 
     /**
@@ -116,7 +119,7 @@ public class StandbyTask extends AbstractTask {
 
     private void flushAndCheckpointState() {
         stateMgr.flush();
-        stateMgr.checkpoint(Collections.<TopicPartition, Long>emptyMap());
+        stateMgr.checkpoint(Collections.emptyMap());
     }
 
     /**
@@ -144,6 +147,8 @@ public class StandbyTask extends AbstractTask {
         } finally {
             closeStateManager(committedSuccessfully);
         }
+
+        taskClosed = true;
     }
 
     @Override
@@ -161,10 +166,31 @@ public class StandbyTask extends AbstractTask {
     public List<ConsumerRecord<byte[], byte[]>> update(final TopicPartition partition,
                                                        final List<ConsumerRecord<byte[], byte[]>> records) {
         log.trace("Updating standby replicas of its state store for partition [{}]", partition);
-        return stateMgr.updateStandbyStates(partition, records);
+        final long limit = stateMgr.offsetLimit(partition);
+
+        long lastOffset = -1L;
+        final List<ConsumerRecord<byte[], byte[]>> restoreRecords = new ArrayList<>(records.size());
+        final List<ConsumerRecord<byte[], byte[]>> remainingRecords = new ArrayList<>();
+
+        for (final ConsumerRecord<byte[], byte[]> record : records) {
+            if (record.offset() < limit) {
+                restoreRecords.add(record);
+                lastOffset = record.offset();
+            } else {
+                remainingRecords.add(record);
+            }
+        }
+
+        stateMgr.updateStandbyStates(partition, restoreRecords, lastOffset);
+
+        if (!restoreRecords.isEmpty()) {
+            commitNeeded = true;
+        }
+
+        return remainingRecords;
     }
 
-    public Map<TopicPartition, Long> checkpointedOffsets() {
+    Map<TopicPartition, Long> checkpointedOffsets() {
         return checkpointedOffsets;
     }
 

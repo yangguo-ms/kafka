@@ -16,11 +16,12 @@
  */
 package org.apache.kafka.clients.admin;
 
-import org.apache.kafka.clients.Metadata;
 import org.apache.kafka.clients.MockClient;
 import org.apache.kafka.common.Cluster;
+import org.apache.kafka.common.requests.MetadataResponse;
 import org.apache.kafka.common.utils.Time;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -32,6 +33,10 @@ import java.util.Map;
  * To use in a test, create an instance and prepare its {@link #kafkaClient() MockClient} with the expected responses
  * for the {@link AdminClient}. Then, use the {@link #adminClient() AdminClient} in the test, which will then use the MockClient
  * and receive the responses you provided.
+ *
+ * Since {@link #kafkaClient() MockClient} is not thread-safe,
+ * users should be wary of calling its methods after the {@link #adminClient() AdminClient} is instantiated.
+ *
  * <p>
  * When finished, be sure to {@link #close() close} the environment object.
  */
@@ -50,13 +55,29 @@ public class AdminClientUnitTestEnv implements AutoCloseable {
     }
 
     public AdminClientUnitTestEnv(Time time, Cluster cluster, Map<String, Object> config) {
+        this(newMockClient(time, cluster), time, cluster, config);
+    }
+
+    public AdminClientUnitTestEnv(MockClient mockClient, Time time, Cluster cluster) {
+        this(mockClient, time, cluster, newStrMap());
+    }
+
+    private static MockClient newMockClient(Time time, Cluster cluster) {
+        MockClient mockClient = new MockClient(time);
+        mockClient.prepareResponse(new MetadataResponse(cluster.nodes(),
+            cluster.clusterResource().clusterId(),
+            cluster.controller() == null ? MetadataResponse.NO_CONTROLLER_ID : cluster.controller().id(),
+            Collections.emptyList()));
+        return mockClient;
+    }
+
+    public AdminClientUnitTestEnv(MockClient mockClient, Time time, Cluster cluster,
+                                  Map<String, Object> config) {
         this.time = time;
         this.cluster = cluster;
         AdminClientConfig adminClientConfig = new AdminClientConfig(config);
-        Metadata metadata = new Metadata(adminClientConfig.getLong(AdminClientConfig.RETRY_BACKOFF_MS_CONFIG),
-                adminClientConfig.getLong(AdminClientConfig.METADATA_MAX_AGE_CONFIG), false);
-        this.mockClient = new MockClient(time, metadata);
-        this.adminClient = KafkaAdminClient.createInternal(adminClientConfig, mockClient, metadata, time);
+        this.mockClient = mockClient;
+        this.adminClient = KafkaAdminClient.createInternal(adminClientConfig, mockClient, time);
     }
 
     public Time time() {
@@ -91,5 +112,9 @@ public class AdminClientUnitTestEnv implements AutoCloseable {
             map.put(vals[i], vals[i + 1]);
         }
         return map;
+    }
+
+    public static String kafkaAdminClientNetworkThreadPrefix() {
+        return KafkaAdminClient.NETWORK_THREAD_PREFIX;
     }
 }

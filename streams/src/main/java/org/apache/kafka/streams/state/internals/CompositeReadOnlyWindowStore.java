@@ -16,6 +16,8 @@
  */
 package org.apache.kafka.streams.state.internals;
 
+import java.time.Instant;
+import org.apache.kafka.streams.internals.ApiUtils;
 import org.apache.kafka.streams.errors.InvalidStateStoreException;
 import org.apache.kafka.streams.kstream.Windowed;
 import org.apache.kafka.streams.state.KeyValueIterator;
@@ -45,10 +47,30 @@ public class CompositeReadOnlyWindowStore<K, V> implements ReadOnlyWindowStore<K
     }
 
     @Override
+    public V fetch(final K key, final long time) {
+        Objects.requireNonNull(key, "key can't be null");
+        final List<ReadOnlyWindowStore<K, V>> stores = provider.stores(storeName, windowStoreType);
+        for (final ReadOnlyWindowStore<K, V> windowStore : stores) {
+            try {
+                final V result = windowStore.fetch(key, time);
+                if (result != null) {
+                    return result;
+                }
+            } catch (final InvalidStateStoreException e) {
+                throw new InvalidStateStoreException(
+                        "State store is not available anymore and may have been migrated to another instance; " +
+                                "please re-discover its location from the state metadata.");
+            }
+        }
+        return null;
+    }
+
+    @Override
+    @Deprecated
     public WindowStoreIterator<V> fetch(final K key, final long timeFrom, final long timeTo) {
         Objects.requireNonNull(key, "key can't be null");
         final List<ReadOnlyWindowStore<K, V>> stores = provider.stores(storeName, windowStoreType);
-        for (ReadOnlyWindowStore<K, V> windowStore : stores) {
+        for (final ReadOnlyWindowStore<K, V> windowStore : stores) {
             try {
                 final WindowStoreIterator<V> result = windowStore.fetch(key, timeFrom, timeTo);
                 if (!result.hasNext()) {
@@ -56,13 +78,20 @@ public class CompositeReadOnlyWindowStore<K, V> implements ReadOnlyWindowStore<K
                 } else {
                     return result;
                 }
-            } catch (InvalidStateStoreException e) {
+            } catch (final InvalidStateStoreException e) {
                 throw new InvalidStateStoreException(
                         "State store is not available anymore and may have been migrated to another instance; " +
                                 "please re-discover its location from the state metadata.");
             }
         }
         return KeyValueIterators.emptyWindowStoreIterator();
+    }
+
+    @Override
+    public WindowStoreIterator<V> fetch(final K key, final Instant from, final Instant to) throws IllegalArgumentException {
+        ApiUtils.validateMillisecondInstant(from, "from");
+        ApiUtils.validateMillisecondInstant(to, "to");
+        return fetch(key, from.toEpochMilli(), to.toEpochMilli());
     }
 
     @Override
@@ -80,7 +109,14 @@ public class CompositeReadOnlyWindowStore<K, V> implements ReadOnlyWindowStore<K
                                                                provider.stores(storeName, windowStoreType).iterator(),
                                                                nextIteratorFunction));
     }
-    
+
+    @Override
+    public KeyValueIterator<Windowed<K>, V> fetch(final K from, final K to, final Instant fromTime, final Instant toTime) throws IllegalArgumentException {
+        ApiUtils.validateMillisecondInstant(fromTime, "fromTime");
+        ApiUtils.validateMillisecondInstant(toTime, "toTime");
+        return fetch(from, to, fromTime.toEpochMilli(), toTime.toEpochMilli());
+    }
+
     @Override
     public KeyValueIterator<Windowed<K>, V> all() {
         final NextIteratorFunction<Windowed<K>, V, ReadOnlyWindowStore<K, V>> nextIteratorFunction = new NextIteratorFunction<Windowed<K>, V, ReadOnlyWindowStore<K, V>>() {
@@ -96,6 +132,7 @@ public class CompositeReadOnlyWindowStore<K, V> implements ReadOnlyWindowStore<K
     }
     
     @Override
+    @Deprecated
     public KeyValueIterator<Windowed<K>, V> fetchAll(final long timeFrom, final long timeTo) {
         final NextIteratorFunction<Windowed<K>, V, ReadOnlyWindowStore<K, V>> nextIteratorFunction = new NextIteratorFunction<Windowed<K>, V, ReadOnlyWindowStore<K, V>>() {
             @Override
@@ -107,5 +144,12 @@ public class CompositeReadOnlyWindowStore<K, V> implements ReadOnlyWindowStore<K
                 new CompositeKeyValueIterator<>(
                         provider.stores(storeName, windowStoreType).iterator(),
                         nextIteratorFunction));
+    }
+
+    @Override
+    public KeyValueIterator<Windowed<K>, V> fetchAll(final Instant from, final Instant to) throws IllegalArgumentException {
+        ApiUtils.validateMillisecondInstant(from, "from");
+        ApiUtils.validateMillisecondInstant(to, "to");
+        return fetchAll(from.toEpochMilli(), to.toEpochMilli());
     }
 }

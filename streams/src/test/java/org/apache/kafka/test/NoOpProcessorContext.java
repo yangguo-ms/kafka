@@ -16,6 +16,7 @@
  */
 package org.apache.kafka.test;
 
+import java.time.Duration;
 import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.processor.Cancellable;
@@ -24,6 +25,7 @@ import org.apache.kafka.streams.processor.Punctuator;
 import org.apache.kafka.streams.processor.StateRestoreCallback;
 import org.apache.kafka.streams.processor.StateStore;
 import org.apache.kafka.streams.processor.TaskId;
+import org.apache.kafka.streams.processor.To;
 import org.apache.kafka.streams.processor.internals.AbstractProcessorContext;
 import org.apache.kafka.streams.processor.internals.MockStreamsMetrics;
 
@@ -51,16 +53,25 @@ public class NoOpProcessorContext extends AbstractProcessorContext {
         return null;
     }
 
-    @Override public Cancellable schedule(long interval, PunctuationType type, Punctuator callback) {
+    @Override
+    public Cancellable schedule(final long interval, final PunctuationType type, final Punctuator callback) {
         return null;
     }
 
     @Override
-    public void schedule(final long interval) {
+    public Cancellable schedule(final Duration interval,
+                                final PunctuationType type,
+                                final Punctuator callback) throws IllegalArgumentException {
+        return null;
     }
 
     @Override
     public <K, V> void forward(final K key, final V value) {
+        forwardedValues.put(key, value);
+    }
+
+    @Override
+    public <K, V> void forward(final K key, final V value, final To to) {
         forwardedValues.put(key, value);
     }
 
@@ -79,13 +90,12 @@ public class NoOpProcessorContext extends AbstractProcessorContext {
     }
 
     @Override
-    public void initialized() {
+    public void initialize() {
         initialized = true;
     }
 
     @Override
     public void register(final StateStore store,
-                         final boolean deprecatedAndIgnoredLoggingEnabled,
                          final StateRestoreCallback stateRestoreCallback) {
         // no-op
     }

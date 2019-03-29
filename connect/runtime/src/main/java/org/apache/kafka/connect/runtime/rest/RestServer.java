@@ -19,8 +19,12 @@ package org.apache.kafka.connect.runtime.rest;
 import com.fasterxml.jackson.jaxrs.json.JacksonJsonProvider;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.connect.errors.ConnectException;
-import org.apache.kafka.connect.runtime.Herder;
+import org.apache.kafka.connect.rest.ConnectRestExtension;
+import org.apache.kafka.connect.rest.ConnectRestExtensionContext;
+import org.apache.kafka.connect.runtime.HerderProvider;
 import org.apache.kafka.connect.runtime.WorkerConfig;
+import org.apache.kafka.connect.runtime.health.ConnectClusterStateImpl;
+import org.apache.kafka.connect.runtime.isolation.Plugins;
 import org.apache.kafka.connect.runtime.rest.errors.ConnectExceptionMapper;
 import org.apache.kafka.connect.runtime.rest.resources.ConnectorPluginsResource;
 import org.apache.kafka.connect.runtime.rest.resources.ConnectorsResource;
@@ -41,12 +45,14 @@ import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.servlets.CrossOriginFilter;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.glassfish.jersey.server.ResourceConfig;
+import org.glassfish.jersey.server.ServerProperties;
 import org.glassfish.jersey.servlet.ServletContainer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.DispatcherType;
 import javax.ws.rs.core.UriBuilder;
+import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -62,6 +68,7 @@ import java.util.regex.Pattern;
 public class RestServer {
     private static final Logger log = LoggerFactory.getLogger(RestServer.class);
 
+    private static final Pattern LISTENER_PATTERN = Pattern.compile("^(.*)://\\[?([0-9a-zA-Z\\-%._:]*)\\]?:(-?[0-9]+)");
     private static final long GRACEFUL_SHUTDOWN_TIMEOUT_MS = 60 * 1000;
 
     private static final String PROTOCOL_HTTP = "http";
@@ -69,6 +76,8 @@ public class RestServer {
 
     private final WorkerConfig config;
     private Server jettyServer;
+
+    private List<ConnectRestExtension> connectRestExtensions = Collections.EMPTY_LIST;
 
     /**
      * Create a REST server for this herder using the specified configs.
@@ -118,8 +127,7 @@ public class RestServer {
      * Creates Jetty connector according to configuration
      */
     public Connector createConnector(String listener) {
-        Pattern listenerPattern = Pattern.compile("^(.*)://\\[?([0-9a-zA-Z\\-%._:]*)\\]?:(-?[0-9]+)");
-        Matcher listenerMatcher = listenerPattern.matcher(listener);
+        Matcher listenerMatcher = LISTENER_PATTERN.matcher(listener);
 
         if (!listenerMatcher.matches())
             throw new ConfigException("Listener doesn't have the right format (protocol://hostname:port).");
@@ -151,17 +159,20 @@ public class RestServer {
         return connector;
     }
 
-    public void start(Herder herder) {
+    public void start(HerderProvider herderProvider, Plugins plugins) {
         log.info("Starting REST server");
 
         ResourceConfig resourceConfig = new ResourceConfig();
         resourceConfig.register(new JacksonJsonProvider());
 
-        resourceConfig.register(new RootResource(herder));
-        resourceConfig.register(new ConnectorsResource(herder, config));
-        resourceConfig.register(new ConnectorPluginsResource(herder));
+        resourceConfig.register(new RootResource(herderProvider));
+        resourceConfig.register(new ConnectorsResource(herderProvider, config));
+        resourceConfig.register(new ConnectorPluginsResource(herderProvider));
 
         resourceConfig.register(ConnectExceptionMapper.class);
+        resourceConfig.property(ServerProperties.WADL_FEATURE_DISABLE, true);
+
+        registerRestExtensions(herderProvider, plugins, resourceConfig);
 
         ServletContainer servletContainer = new ServletContainer(resourceConfig);
         ServletHolder servletHolder = new ServletHolder(servletContainer);
@@ -207,10 +218,21 @@ public class RestServer {
         log.info("REST server listening at " + jettyServer.getURI() + ", advertising URL " + advertisedUrl());
     }
 
+    public URI serverUrl() {
+        return jettyServer.getURI();
+    }
+
     public void stop() {
         log.info("Stopping REST server");
 
         try {
+            for (ConnectRestExtension connectRestExtension : connectRestExtensions) {
+                try {
+                    connectRestExtension.close();
+                } catch (IOException e) {
+                    log.warn("Error while invoking close on " + connectRestExtension.getClass(), e);
+                }
+            }
             jettyServer.stop();
             jettyServer.join();
         } catch (Exception e) {
@@ -242,7 +264,7 @@ public class RestServer {
         Integer advertisedPort = config.getInt(WorkerConfig.REST_ADVERTISED_PORT_CONFIG);
         if (advertisedPort != null)
             builder.port(advertisedPort);
-        else if (serverConnector != null)
+        else if (serverConnector != null && serverConnector.getPort() > 0)
             builder.port(serverConnector.getPort());
 
         log.info("Advertised URI: {}", builder.build());
@@ -278,6 +300,22 @@ public class RestServer {
         }
 
         return null;
+    }
+
+    void registerRestExtensions(HerderProvider provider, Plugins plugins, ResourceConfig resourceConfig) {
+        connectRestExtensions = plugins.newPlugins(
+            config.getList(WorkerConfig.REST_EXTENSION_CLASSES_CONFIG),
+            config, ConnectRestExtension.class);
+
+        ConnectRestExtensionContext connectRestExtensionContext =
+            new ConnectRestExtensionContextImpl(
+                new ConnectRestConfigurable(resourceConfig),
+                new ConnectClusterStateImpl(provider)
+            );
+        for (ConnectRestExtension connectRestExtension : connectRestExtensions) {
+            connectRestExtension.register(connectRestExtensionContext);
+        }
+
     }
 
     public static String urlJoin(String base, String path) {

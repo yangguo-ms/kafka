@@ -74,6 +74,7 @@ object TransactionMarkerChannelManager {
       Selectable.USE_DEFAULT_BUFFER_SIZE,
       config.socketReceiveBufferBytes,
       config.requestTimeoutMs,
+      ClientDnsLookup.DEFAULT,
       time,
       false,
       new ApiVersions,
@@ -134,6 +135,8 @@ class TransactionMarkerChannelManager(config: KafkaConfig,
   private val markersQueueForUnknownBroker = new TxnMarkerQueue(Node.noNode)
 
   private val txnLogAppendRetryQueue = new LinkedBlockingQueue[TxnLogAppend]()
+
+  override val requestTimeoutMs: Int = config.requestTimeoutMs
 
   newGauge(
     "UnknownDestinationQueueSize",

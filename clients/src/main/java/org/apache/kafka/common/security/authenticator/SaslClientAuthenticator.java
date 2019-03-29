@@ -24,9 +24,8 @@ import org.apache.kafka.common.errors.IllegalSaslStateException;
 import org.apache.kafka.common.errors.SaslAuthenticationException;
 import org.apache.kafka.common.errors.UnsupportedSaslMechanismException;
 import org.apache.kafka.common.network.Authenticator;
-import org.apache.kafka.common.network.Mode;
-import org.apache.kafka.common.network.NetworkReceive;
 import org.apache.kafka.common.network.NetworkSend;
+import org.apache.kafka.common.network.NetworkReceive;
 import org.apache.kafka.common.network.Send;
 import org.apache.kafka.common.network.TransportLayer;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -41,7 +40,9 @@ import org.apache.kafka.common.requests.SaslAuthenticateRequest;
 import org.apache.kafka.common.requests.SaslAuthenticateResponse;
 import org.apache.kafka.common.requests.SaslHandshakeRequest;
 import org.apache.kafka.common.requests.SaslHandshakeResponse;
+import org.apache.kafka.common.security.auth.AuthenticateCallbackHandler;
 import org.apache.kafka.common.security.auth.KafkaPrincipal;
+import org.apache.kafka.common.security.kerberos.KerberosError;
 import org.apache.kafka.common.utils.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -87,7 +88,7 @@ public class SaslClientAuthenticator implements Authenticator {
     private final SaslClient saslClient;
     private final Map<String, ?> configs;
     private final String clientPrincipalName;
-    private final AuthCallbackHandler callbackHandler;
+    private final AuthenticateCallbackHandler callbackHandler;
 
     // buffers used in `authenticate`
     private NetworkReceive netInBuffer;
@@ -105,15 +106,17 @@ public class SaslClientAuthenticator implements Authenticator {
     private short saslAuthenticateVersion;
 
     public SaslClientAuthenticator(Map<String, ?> configs,
+                                   AuthenticateCallbackHandler callbackHandler,
                                    String node,
                                    Subject subject,
                                    String servicePrincipal,
                                    String host,
                                    String mechanism,
                                    boolean handshakeRequestEnable,
-                                   TransportLayer transportLayer) throws IOException {
+                                   TransportLayer transportLayer) {
         this.node = node;
         this.subject = subject;
+        this.callbackHandler = callbackHandler;
         this.host = host;
         this.servicePrincipal = servicePrincipal;
         this.mechanism = mechanism;
@@ -133,9 +136,6 @@ public class SaslClientAuthenticator implements Authenticator {
             else
                 this.clientPrincipalName = null;
 
-            callbackHandler = new SaslClientCallbackHandler();
-            callbackHandler.configure(configs, Mode.CLIENT, subject, mechanism);
-
             saslClient = createSaslClient();
         } catch (Exception e) {
             throw new SaslAuthenticationException("Failed to configure SaslClientAuthenticator", e);
@@ -144,13 +144,11 @@ public class SaslClientAuthenticator implements Authenticator {
 
     private SaslClient createSaslClient() {
         try {
-            return Subject.doAs(subject, new PrivilegedExceptionAction<SaslClient>() {
-                public SaslClient run() throws SaslException {
-                    String[] mechs = {mechanism};
-                    LOG.debug("Creating SaslClient: client={};service={};serviceHostname={};mechs={}",
-                        clientPrincipalName, servicePrincipal, host, Arrays.toString(mechs));
-                    return Sasl.createSaslClient(mechs, clientPrincipalName, servicePrincipal, host, configs, callbackHandler);
-                }
+            return Subject.doAs(subject, (PrivilegedExceptionAction<SaslClient>) () -> {
+                String[] mechs = {mechanism};
+                LOG.debug("Creating SaslClient: client={};service={};serviceHostname={};mechs={}",
+                    clientPrincipalName, servicePrincipal, host, Arrays.toString(mechs));
+                return Sasl.createSaslClient(mechs, clientPrincipalName, servicePrincipal, host, configs, callbackHandler);
             });
         } catch (PrivilegedActionException e) {
             throw new SaslAuthenticationException("Failed to create SaslClient with mechanism " + mechanism, e.getCause());
@@ -325,8 +323,6 @@ public class SaslClientAuthenticator implements Authenticator {
     public void close() throws IOException {
         if (saslClient != null)
             saslClient.dispose();
-        if (callbackHandler != null)
-            callbackHandler.close();
     }
 
     private byte[] receiveToken() throws IOException {
@@ -356,18 +352,12 @@ public class SaslClientAuthenticator implements Authenticator {
             if (isInitial && !saslClient.hasInitialResponse())
                 return saslToken;
             else
-                return Subject.doAs(subject, new PrivilegedExceptionAction<byte[]>() {
-                    public byte[] run() throws SaslException {
-                        return saslClient.evaluateChallenge(saslToken);
-                    }
-                });
+                return Subject.doAs(subject, (PrivilegedExceptionAction<byte[]>) () -> saslClient.evaluateChallenge(saslToken));
         } catch (PrivilegedActionException e) {
             String error = "An error: (" + e + ") occurred when evaluating SASL token received from the Kafka Broker.";
+            KerberosError kerberosError = KerberosError.fromException(e);
             // Try to provide hints to use about what went wrong so they can fix their configuration.
-            // TODO: introspect about e: look for GSS information.
-            final String unknownServerErrorText =
-                "(Mechanism level: Server not found in Kerberos database (7) - UNKNOWN_SERVER)";
-            if (e.toString().contains(unknownServerErrorText)) {
+            if (kerberosError == KerberosError.SERVER_NOT_FOUND) {
                 error += " This may be caused by Java's being unable to resolve the Kafka Broker's" +
                     " hostname correctly. You may want to try to adding" +
                     " '-Dsun.net.spi.nameservice.provider.1=dns,sun' to your client's JVMFLAGS environment." +
@@ -376,7 +366,13 @@ public class SaslClientAuthenticator implements Authenticator {
             }
             error += " Kafka Client will go to AUTHENTICATION_FAILED state.";
             //Unwrap the SaslException inside `PrivilegedActionException`
-            throw new SaslAuthenticationException(error, e.getCause());
+            Throwable cause = e.getCause();
+            // Treat transient Kerberos errors as non-fatal SaslExceptions that are processed as I/O exceptions
+            // and all other failures as fatal SaslAuthenticationException.
+            if (kerberosError != null && kerberosError.retriable())
+                throw new SaslException(error, cause);
+            else
+                throw new SaslAuthenticationException(error, cause);
         }
     }
 
@@ -439,4 +435,5 @@ public class SaslClientAuthenticator implements Authenticator {
                 throw new KafkaException("Principal could not be determined from Subject, this may be a transient failure due to Kerberos re-login");
         }
     }
+
 }
