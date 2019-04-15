@@ -24,7 +24,7 @@ import java.util.concurrent.atomic._
 import java.util.concurrent.{ConcurrentNavigableMap, ConcurrentSkipListMap, TimeUnit}
 
 import kafka.api.KAFKA_0_10_0_IV0
-import kafka.common.{InvalidOffsetException, KafkaException, LongRef, UnexpectedAppendOffsetException, OffsetsOutOfOrderException}
+import kafka.common.{InvalidOffsetException, KafkaException, LongRef, OffsetsOutOfOrderException, UnexpectedAppendOffsetException}
 import kafka.metrics.KafkaMetricsGroup
 import kafka.server.{BrokerTopicStats, FetchDataInfo, LogDirFailureChannel, LogOffsetMetadata}
 import kafka.utils._
@@ -36,7 +36,7 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 import scala.collection.{Seq, Set, mutable}
 import com.yammer.metrics.core.Gauge
-import org.apache.kafka.common.utils.{Time, Utils}
+import org.apache.kafka.common.utils.{OperatingSystem, Time, Utils}
 import kafka.message.{BrokerCompressionCodec, CompressionCodec, NoCompressionCodec}
 import kafka.server.checkpoints.{LeaderEpochCheckpointFile, LeaderEpochFile}
 import kafka.server.epoch.{LeaderEpochCache, LeaderEpochFileCache}
@@ -387,7 +387,18 @@ class Log(@volatile var dir: File,
         fileSuffix = SwapFileSuffix)
       info(s"Found log file ${swapFile.getPath} from interrupted swap operation, repairing.")
       recoverSegment(swapSegment)
-      val oldSegments = logSegments(swapSegment.baseOffset, swapSegment.readNextOffset)
+
+      // Assigned to a new value
+      val nextOffset = swapSegment.readNextOffset
+      var oldSegments = logSegments(swapSegment.baseOffset, nextOffset)
+
+      // This means swap file is empty. Because of that baseOffset and nextOffset is the same.
+      // logSegments method above would return empty list. Here we are making sure that
+      // the segment with the baseOffset is returned as well.
+      if(oldSegments.isEmpty && segments.containsKey(swapSegment.baseOffset)) {
+        oldSegments = Iterable(segments.get(swapSegment.baseOffset))
+      }
+
       replaceSegments(swapSegment, oldSegments.toSeq, isRecoveredSwapFile = true)
     }
   }
@@ -576,7 +587,11 @@ class Log(@volatile var dir: File,
     lock synchronized {
       maybeHandleIOException(s"Error while renaming dir for $topicPartition in log dir ${dir.getParent}") {
         val renamedDir = new File(dir.getParent, name)
-        closeHandlers()
+
+        if(OperatingSystem.IS_WINDOWS) {
+          close()
+        }
+
         Utils.atomicMoveWithFallback(dir.toPath, renamedDir.toPath)
         if (renamedDir != dir) {
           dir = renamedDir
@@ -586,18 +601,29 @@ class Log(@volatile var dir: File,
           // the checkpoint file in renamed log directory
           _leaderEpochCache = initializeLeaderEpochCache()
         }
+
+        if(OperatingSystem.IS_WINDOWS && !renamedDir.toPath.toString.endsWith(Log.DeleteDirSuffix)) {
+          openHandlers()
+        }
       }
     }
   }
 
   /**
-   * Close file handlers used by log but don't write to disk. This is called if the log directory is offline
-   */
+    * Close file handlers used by log but don't write to disk. This is called if the log directory is offline
+    */
   def closeHandlers() {
     debug("Closing handlers")
     lock synchronized {
       logSegments.foreach(_.closeHandlers())
       isMemoryMappedBufferClosed = true
+    }
+  }
+
+  def openHandlers() {
+    debug("Opening handlers")
+    lock synchronized {
+      logSegments.foreach(_.openHandlers())
     }
   }
 
@@ -1617,7 +1643,13 @@ class Log(@volatile var dir: File,
    * @throws IOException if the file can't be renamed and still exists
    */
   private def asyncDeleteSegment(segment: LogSegment) {
+
+    if(OperatingSystem.IS_WINDOWS) {
+      segment.close()
+    }
+
     segment.changeFileSuffixes("", Log.DeletedFileSuffix)
+
     def deleteSeg() {
       info(s"Deleting segment ${segment.baseOffset}")
       maybeHandleIOException(s"Error while deleting segments for $topicPartition in dir ${dir.getParent}") {
@@ -1656,6 +1688,7 @@ class Log(@volatile var dir: File,
    */
   private[log] def replaceSegments(newSegment: LogSegment, oldSegments: Seq[LogSegment], isRecoveredSwapFile: Boolean = false) {
     lock synchronized {
+      val existingOldSegments = oldSegments.filter(seg => segments.containsKey(seg.baseOffset))
       checkIfMemoryMappedBufferClosed()
       // need to do this in two phases to be crash safe AND do the delete asynchronously
       // if we crash in the middle of this we complete the swap in loadSegments()
@@ -1664,7 +1697,7 @@ class Log(@volatile var dir: File,
       addSegment(newSegment)
 
       // delete the old files
-      for (seg <- oldSegments) {
+      for (seg <- existingOldSegments) {
         // remove the index entry
         if (seg.baseOffset != newSegment.baseOffset)
           segments.remove(seg.baseOffset)

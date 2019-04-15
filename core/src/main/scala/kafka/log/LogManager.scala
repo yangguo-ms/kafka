@@ -578,7 +578,7 @@ class LogManager(logDirs: Seq[File],
       } catch {
         case e: IOException =>
           logDirFailureChannel.maybeAddOfflineLogDir(dir.getAbsolutePath, s"Disk error while writing to recovery point " +
-            s"file in directory $dir", e)
+            s"file in directory $dir, error message: ${e.getMessage}", e)
       }
     }
   }

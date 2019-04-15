@@ -29,8 +29,7 @@ import org.apache.kafka.common.errors._
 import org.apache.kafka.common.internals.Topic
 import org.apache.kafka.common.protocol.types._
 import org.apache.kafka.common.record.{ControlRecordType, EndTransactionMarker, RecordBatch}
-import org.apache.kafka.common.utils.{ByteUtils, Crc32C}
-
+import org.apache.kafka.common.utils.{ByteUtils, Crc32C, Utils}
 import scala.collection.mutable.ListBuffer
 import scala.collection.{immutable, mutable}
 
@@ -337,7 +336,7 @@ private[log] class ProducerAppendInfo(val producerId: Long,
   }
 }
 
-object ProducerStateManager {
+object ProducerStateManager extends Logging {
   private val ProducerSnapshotVersion: Short = 1
   private val VersionField = "version"
   private val CrcField = "crc"
@@ -455,7 +454,21 @@ object ProducerStateManager {
 
   private def deleteSnapshotFiles(dir: File, predicate: Long => Boolean = _ => true) {
     listSnapshotFiles(dir).filter(file => predicate(offsetFromFile(file))).foreach { file =>
-      Files.deleteIfExists(file.toPath)
+      try {
+        Files.deleteIfExists(file.toPath)
+      } catch {
+        case e: IOException => {
+          // Under multi-threading condition, each thread will get IOException if the threads are deleting the file simultaneously.
+          // This retry seems be redundant, even though the first deleteIfExists() above throw IOException, the file still gets deleted.
+          // But to make sure the snapshot will get deleted successfully, we're forcing each thread to sleep with different amount of time before the retry.
+
+          val sleepTimeInMs = Thread.currentThread().getId % 107
+          warn(s"Exception deleting snapshot file ${file.toPath}. Error: ${e.getMessage}.")
+          Utils.sleep(sleepTimeInMs)
+          warn(s"Retrying deletion of snapshot file after sleeping for ${sleepTimeInMs}ms.")
+          Files.deleteIfExists(file.toPath)
+        }
+      }
     }
   }
 
