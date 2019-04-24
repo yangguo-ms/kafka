@@ -39,6 +39,7 @@ import org.slf4j.LoggerFactory;
 import net.sf.jni4net.Bridge;
 import dstsauthentication.DstsAuthentication;
 import dstsauthentication.AuthenticationResult;
+import dstsauthentication.Claim;
 import com.microsoft.autopilot.ApRuntime;
 import com.microsoft.autopilot.Configuration;
 import com.google.gson.Gson;

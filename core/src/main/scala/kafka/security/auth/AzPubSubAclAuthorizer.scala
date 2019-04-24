@@ -98,11 +98,13 @@ class AzPubSubAclAuthorizer extends SimpleAclAuthorizer with KafkaMetricsGroup {
           case KafkaPrincipal.USER_TYPE => aclMatch(operation, resource, session.principal, session.clientAddress.getHostAddress, Allow, acls)
 
           case KafkaPrincipal.Token_Type=> {
-            token.Claims.foreach(c => {
+            var iterator = token.Claims.listIterator();
+            while(iterator.hasNext){
 
-              authorizerLogger.debug("Claim from json token: {}", c.getValue)
+              val c = iterator.next()
+              authorizerLogger.debug("Claim from json token: {}", c.Value)
 
-              val prin = new KafkaPrincipal(KafkaPrincipal.Role_Type, c.getValue)
+              val prin = new KafkaPrincipal(KafkaPrincipal.Role_Type, c.Value)
 
               if(aclMatch(operation, resource, prin, session.clientAddress.getHostAddress, Allow, acls)){
 
@@ -112,7 +114,7 @@ class AzPubSubAclAuthorizer extends SimpleAclAuthorizer with KafkaMetricsGroup {
 
                 return true
               }
-            })
+            }
 
             authorizerLogger.warn("Token is not authorized...")
             newTimer("TokenNotAuthorizedForTopicRateMs", TimeUnit.MILLISECONDS, TimeUnit.SECONDS)
