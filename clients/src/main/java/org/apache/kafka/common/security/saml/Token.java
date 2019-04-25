@@ -10,10 +10,10 @@ import java.util.List;
 
 public class Token {
     public List<org.apache.kafka.common.security.saml.Claim> Claims;
-    public DateTime ValidFrom;
-    public DateTime ValidTo;
+    public String ValidFrom;
+    public String ValidTo;
 
-    public Token(Claim[] claims, DateTime from, DateTime to){
+    public Token(Claim[] claims, String from, String to){
         ValidFrom = from;
         ValidTo = to;
         Claims = new ArrayList<>();

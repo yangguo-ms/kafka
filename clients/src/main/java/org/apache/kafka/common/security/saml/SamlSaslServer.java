@@ -187,7 +187,7 @@ public class SamlSaslServer implements SaslServer{
 
             if(status.equals(AUTHENTICATION_STATUS_OK)) {
                 Gson gson = new Gson();
-                Token token = new Token(res.getClaims(), res.getValidFrom(), res.getValidTo());
+                Token token = new Token(res.getClaims(), res.getValidFrom().ToString(), res.getValidTo().ToString());
                 this.authorizationId = gson.toJson(token);
                 this.customizedProperties.put(this.PRINCIPAL_TYPE, KafkaPrincipal.Token_Type);
 

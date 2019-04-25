@@ -65,7 +65,9 @@ class AzPubSubAclAuthorizer extends SimpleAclAuthorizer with KafkaMetricsGroup {
         return false
       }
 
-      if(system.DateTime.Compare(token.ValidFrom, system.DateTime.getUtcNow) > 0){
+      val validFrom = system.DateTime.Parse(token.ValidFrom)
+      val validTo = system.DateTime.Parse(token.ValidTo)
+      if(system.DateTime.Compare(validFrom, system.DateTime.getUtcNow) > 0){
 
         authorizerLogger.warn("The ValidFrom date time of the token is in the future, this is invalid. ValidFrom: {}, now: {}", token.ValidFrom, system.DateTime.getUtcNow);
 
@@ -74,7 +76,7 @@ class AzPubSubAclAuthorizer extends SimpleAclAuthorizer with KafkaMetricsGroup {
         return false
       }
 
-      if(system.DateTime.Compare(system.DateTime.getUtcNow, token.ValidTo) > 0){
+      if(system.DateTime.Compare(system.DateTime.getUtcNow, validTo) > 0){
 
         authorizerLogger.warn("The token has already expired. ValidTo: {}, now: {}", token.ValidTo, system.DateTime.getUtcNow);
 
