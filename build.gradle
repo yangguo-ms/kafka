@@ -571,7 +571,6 @@ project(':core') {
       exclude module: 'log4j'
       exclude module: 'netty'
     }
-    implementation 'com.google.code.gson:gson:2.8.5'
 
     compileOnly libs.log4j
 
@@ -794,18 +793,6 @@ project(':clients') {
     compile libs.lz4
     compile libs.snappy
     compile libs.slf4jApi
-    compile files('../repository/jni4net.j-0.8.6.0.jar')
-    compile files('../repository/DstsAuthentication.j4n.jar')
-    compile files('../repository/ApSdk4j.jar')
-    compile(libs.zkclient) {
-      exclude module: 'zookeeper'
-    }
-    compile(libs.zookeeper) {
-      exclude module: 'slf4j-log4j12'
-      exclude module: 'log4j'
-      exclude module: 'netty'
-    }
-    implementation 'com.google.code.gson:gson:2.8.5'
 
     testCompile libs.bcpkix
     testCompile libs.junit

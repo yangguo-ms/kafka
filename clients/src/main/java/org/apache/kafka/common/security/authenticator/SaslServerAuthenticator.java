@@ -302,7 +302,6 @@ public class SaslServerAuthenticator implements Authenticator {
         if (ScramMechanism.isScram(saslMechanism) && Boolean.parseBoolean((String) saslServer.getNegotiatedProperty(ScramLoginModule.TOKEN_AUTH_CONFIG))) {
             principal.tokenAuthenticated(true);
         }
-
         return principal;
     }
 
