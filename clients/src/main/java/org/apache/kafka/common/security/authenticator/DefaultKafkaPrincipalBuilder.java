@@ -51,6 +51,7 @@ import static java.util.Objects.requireNonNull;
  * must adapt implementations of the older {@link org.apache.kafka.common.security.auth.PrincipalBuilder} interface.
  */
 public class DefaultKafkaPrincipalBuilder implements KafkaPrincipalBuilder, Closeable {
+    public static final String PRINCIPAL_TYPE = "principal.type"; 
     private static final Logger log = LoggerFactory.getLogger(DefaultKafkaPrincipalBuilder.class);
     // Use FQN to avoid import deprecation warnings
     @SuppressWarnings("deprecation")
@@ -122,7 +123,7 @@ public class DefaultKafkaPrincipalBuilder implements KafkaPrincipalBuilder, Clos
             if (SaslConfigs.GSSAPI_MECHANISM.equals(saslServer.getMechanismName()))
                 return applyKerberosShortNamer(saslServer.getAuthorizationID());
             else{
-                Object principalType = saslServer.getNegotiatedProperty("principal.type");
+                Object principalType = saslServer.getNegotiatedProperty(PRINCIPAL_TYPE);
                 if(principalType != null){
                     log.debug("principal Type is: {}", principalType.toString());
                     return new KafkaPrincipal(principalType.toString(), saslServer.getAuthorizationID());
