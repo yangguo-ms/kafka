@@ -24,8 +24,8 @@ import scala.collection.JavaConverters._
 
 object Acl {
   val WildCardPrincipal: KafkaPrincipal = new KafkaPrincipal(KafkaPrincipal.USER_TYPE, "*")
-  val wildCardUserTypePrincipal: KafkaPrincipal = new KafkaPrincipal(KafkaPrincipal.USER_TYPE, "*")
-  val wildCardRoleTypePrincipal: KafkaPrincipal = new KafkaPrincipal(KafkaPrincipal.Role_Type, "*")
+  val WildCardUserTypePrincipal: KafkaPrincipal = new KafkaPrincipal(KafkaPrincipal.USER_TYPE, "*")
+  val WildCardRoleTypePrincipal: KafkaPrincipal = new KafkaPrincipal(KafkaPrincipal.ROLE_TYPE, "*")
   val WildCardHost: String = "*"
   val AllowAllAcl = new Acl(WildCardPrincipal, Allow, WildCardHost, All)
   val PrincipalKey = "principal"
