@@ -28,6 +28,8 @@ import org.apache.kafka.common.security.auth.SaslAuthenticationContext;
 import org.apache.kafka.common.security.auth.SslAuthenticationContext;
 import org.apache.kafka.common.security.kerberos.KerberosName;
 import org.apache.kafka.common.security.kerberos.KerberosShortNamer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;
@@ -49,6 +51,8 @@ import static java.util.Objects.requireNonNull;
  * must adapt implementations of the older {@link org.apache.kafka.common.security.auth.PrincipalBuilder} interface.
  */
 public class DefaultKafkaPrincipalBuilder implements KafkaPrincipalBuilder, Closeable {
+    public static final String PRINCIPAL_TYPE = "principal.type"; 
+    private static final Logger LOGGER = LoggerFactory.getLogger(DefaultKafkaPrincipalBuilder.class);
     // Use FQN to avoid import deprecation warnings
     @SuppressWarnings("deprecation")
     private final org.apache.kafka.common.security.auth.PrincipalBuilder oldPrincipalBuilder;
@@ -118,8 +122,14 @@ public class DefaultKafkaPrincipalBuilder implements KafkaPrincipalBuilder, Clos
             SaslServer saslServer = ((SaslAuthenticationContext) context).server();
             if (SaslConfigs.GSSAPI_MECHANISM.equals(saslServer.getMechanismName()))
                 return applyKerberosShortNamer(saslServer.getAuthorizationID());
-            else
+            else {
+                Object principalType = saslServer.getNegotiatedProperty(PRINCIPAL_TYPE);
+                if(principalType != null){
+                    LOGGER.debug("Principal type is: {}", principalType.toString());
+                    return new KafkaPrincipal(principalType.toString(), saslServer.getAuthorizationID());
+                }
                 return new KafkaPrincipal(KafkaPrincipal.USER_TYPE, saslServer.getAuthorizationID());
+            }
         } else {
             throw new IllegalArgumentException("Unhandled authentication context type: " + context.getClass().getName());
         }
