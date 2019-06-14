@@ -1,0 +1,396 @@
+#
+# A fatal error has been detected by the Java Runtime Environment:
+#
+#  EXCEPTION_ACCESS_VIOLATION (0xc0000005) at pc=0x00007ff91d99959c, pid=20884, tid=0x00000000000060ec
+#
+# JRE version: OpenJDK Runtime Environment (8.0_191-b05) (build 1.8.0_191-b05)
+# Java VM: OpenJDK 64-Bit Server VM (25.191-b05 mixed mode windows-amd64 compressed oops)
+# Problematic frame:
+# C  [ApSdk4j.dll+0x2959c]
+#
+# Failed to write core dump. Minidumps are not enabled by default on client versions of Windows
+#
+# If you would like to submit a bug report, please visit:
+#   http://www.azulsystems.com/support/
+# The crash happened outside the Java Virtual Machine in native code.
+# See problematic frame for where to report the bug.
+#
+
+---------------  T H R E A D  ---------------
+
+Current thread (0x0000000002ec7000):  JavaThread "main" [_thread_in_native, id=24812, stack(0x0000000002c70000,0x0000000002d70000)]
+
+siginfo: ExceptionCode=0xc0000005, writing address 0x0000000000000000
+
+Registers:
+RAX=0x0000000000000000, RBX=0x00000000010639e0, RCX=0xc5a514b543580000, RDX=0x0000000002d5d600
+RSP=0x0000000002d5d6f0, RBP=0x0000000002d6d760, RSI=0x0000000002d5d7a7, RDI=0x0000000000000066
+R8 =0x0000000002d5d640, R9 =0x000000000000002b, R10=0x00007ff91d9f1c78, R11=0x0000000002d5d7b1
+R12=0x0000000000000001, R13=0x00007ff91da31ce8, R14=0x0000000000000000, R15=0x00000000ffffffff
+RIP=0x00007ff91d99959c, EFLAGS=0x0000000000010206
+
+Top of Stack: (sp=0x0000000002d5d6f0)
+0x0000000002d5d6f0:   0000000000000000 0000000002d6d760
+0x0000000002d5d700:   0000000000000066 00007ff91d997f00
+0x0000000002d5d710:   00000000010639e0 0000000002d6d760
+0x0000000002d5d720:   0000000002d5d7a7 0000000001d51fe8
+0x0000000002d5d730:   0000000002d6d834 000000000000006c
+0x0000000002d5d740:   0000000002d5d78b 0000000000000066
+0x0000000002d5d750:   0000000000000001 0000000002d5da10
+0x0000000002d5d760:   2f30312f36302c61 3a37312039313032
+0x0000000002d5d770:   6f432c34343a3030 6e6f432c6e6f6d6d
+0x0000000002d5d780:   6974617275676966 223d6469502c6e6f
+0x0000000002d5d790:   5420223438383032 31383432223d6469
+0x0000000002d5d7a0:   30223d5354202232 4546313544313078
+0x0000000002d5d7b0:   3445463134374238 6e69727453202239
+0x0000000002d5d7c0:   626f6c67223d3167 69666e6f63206c61
+0x0000000002d5d7d0:   6e6f697461727567 6c616974696e6920
+0x0000000002d5d7e0:   206e6f6974617a69 0d2264656c696166 
+
+Instructions: (pc=0x00007ff91d99959c)
+0x00007ff91d99957c:   5b e9 5e df fd ff cc cc e9 c3 f9 ff ff cc cc cc
+0x00007ff91d99958c:   48 83 ec 18 48 c7 04 24 00 00 00 00 48 8b 04 24
+0x00007ff91d99959c:   c7 00 00 00 00 00 32 c0 48 83 c4 18 c3 cc cc cc
+0x00007ff91d9995ac:   48 83 c1 10 48 ff 25 b1 ee 04 00 cc 48 89 5c 24 
+
+
+Register to memory mapping:
+
+RAX=0x0000000000000000 is an unknown value
+RBX=0x00000000010639e0 is an unknown value
+RCX=0xc5a514b543580000 is an unknown value
+RDX=0x0000000002d5d600 is pointing into the stack for thread: 0x0000000002ec7000
+RSP=0x0000000002d5d6f0 is pointing into the stack for thread: 0x0000000002ec7000
+RBP=0x0000000002d6d760 is pointing into the stack for thread: 0x0000000002ec7000
+RSI=0x0000000002d5d7a7 is pointing into the stack for thread: 0x0000000002ec7000
+RDI=0x0000000000000066 is an unknown value
+R8 =0x0000000002d5d640 is pointing into the stack for thread: 0x0000000002ec7000
+R9 =0x000000000000002b is an unknown value
+R10=0x00007ff91d9f1c78 is an unknown value
+R11=0x0000000002d5d7b1 is pointing into the stack for thread: 0x0000000002ec7000
+R12=0x0000000000000001 is an unknown value
+R13=0x00007ff91da31ce8 is an unknown value
+R14=0x0000000000000000 is an unknown value
+R15=0x00000000ffffffff is an unknown value
+
+
+Stack: [0x0000000002c70000,0x0000000002d70000],  sp=0x0000000002d5d6f0,  free space=949k
+Native frames: (J=compiled Java code, j=interpreted, Vv=VM code, C=native code)
+C  [ApSdk4j.dll+0x2959c]
+C  [ApSdk4j.dll+0x27f00]
+C  [ApSdk4j.dll+0x22c46]
+C  [ApSdk4j.dll+0x26bda]
+C  [ApSdk4j.dll+0x268fd]
+C  [ApSdk4j.dll+0x399d6]
+C  [ApSdk4j.dll+0x3a0d7]
+C  [ApSdk4j.dll+0x7304]
+C  0x0000000002fe1b30
+
+Java frames: (J=compiled Java code, j=interpreted, Vv=VM code)
+j  com.microsoft.autopilot.ApRuntime.initCountersAndLogger(Ljava/lang/String;)Z+0
+j  com.microsoft.autopilot.ApRuntime.initialize()V+22
+j  com.microsoft.autopilot.ApRuntime.<clinit>()V+19
+v  ~StubRoutines::call_stub
+j  com.microsoft.kafka.common.security.saml.SamlSaslServer.<init>(Lorg/apache/kafka/common/security/JaasContext;Ljava/util/Map;)V+45
+j  com.microsoft.kafka.security.auth.AzPubSubTokenValidator.<init>()V+11
+v  ~StubRoutines::call_stub
+j  sun.reflect.NativeConstructorAccessorImpl.newInstance0(Ljava/lang/reflect/Constructor;[Ljava/lang/Object;)Ljava/lang/Object;+0
+j  sun.reflect.NativeConstructorAccessorImpl.newInstance([Ljava/lang/Object;)Ljava/lang/Object;+85
+j  sun.reflect.DelegatingConstructorAccessorImpl.newInstance([Ljava/lang/Object;)Ljava/lang/Object;+5
+j  java.lang.reflect.Constructor.newInstance([Ljava/lang/Object;)Ljava/lang/Object;+79
+j  kafka.utils.CoreUtils$.createObject(Ljava/lang/String;Lscala/collection/Seq;)Ljava/lang/Object;+71
+j  kafka.security.auth.AzPubSubAclAuthorizer.configure(Ljava/util/Map;)V+69
+j  kafka.server.KafkaServer$$anonfun$startup$5.apply(Ljava/lang/String;)Lkafka/security/auth/Authorizer;+32
+j  kafka.server.KafkaServer$$anonfun$startup$5.apply(Ljava/lang/Object;)Ljava/lang/Object;+5
+j  scala.Option.map(Lscala/Function1;)Lscala/Option;+22
+j  kafka.server.KafkaServer.startup()V+911
+j  kafka.server.KafkaServerStartable.startup()V+4
+j  kafka.Kafka$.main([Ljava/lang/String;)V+81
+j  kafka.Kafka.main([Ljava/lang/String;)V+4
+v  ~StubRoutines::call_stub
+
+---------------  P R O C E S S  ---------------
+
+Java Threads: ( => current thread )
+  0x0000000028b64800 JavaThread "Controller-0-to-broker-0-send-thread" [_thread_blocked, id=20844, stack(0x000000002fdb0000,0x000000002feb0000)]
+  0x0000000028b63800 JavaThread "TxnMarkerSenderThread-0" [_thread_in_native, id=22912, stack(0x000000002fcb0000,0x000000002fdb0000)]
+  0x0000000028b5c000 JavaThread "transaction-log-manager-0" daemon [_thread_blocked, id=33700, stack(0x000000002fbb0000,0x000000002fcb0000)]
+  0x0000000028b62000 JavaThread "group-metadata-manager-0" daemon [_thread_blocked, id=8364, stack(0x000000002f8b0000,0x000000002f9b0000)]
+  0x0000000028b63000 JavaThread "ExpirationReaper-0-Rebalance" [_thread_blocked, id=34188, stack(0x000000002f7b0000,0x000000002f8b0000)]
+  0x0000000028b61800 JavaThread "ExpirationReaper-0-Heartbeat" [_thread_blocked, id=31148, stack(0x000000002f6b0000,0x000000002f7b0000)]
+  0x0000000028b5d000 JavaThread "ExpirationReaper-0-topic" [_thread_blocked, id=34080, stack(0x000000002f5b0000,0x000000002f6b0000)]
+  0x0000000028b60800 JavaThread "controller-event-thread" [_thread_blocked, id=30124, stack(0x000000002f4b0000,0x000000002f5b0000)]
+  0x0000000028b5f000 JavaThread "LogDirFailureHandler" [_thread_blocked, id=15128, stack(0x000000002f3b0000,0x000000002f4b0000)]
+  0x0000000028b5e800 JavaThread "kafka-scheduler-9" daemon [_thread_blocked, id=33804, stack(0x000000002f2b0000,0x000000002f3b0000)]
+  0x0000000028b5d800 JavaThread "kafka-scheduler-8" daemon [_thread_blocked, id=31172, stack(0x000000002f1b0000,0x000000002f2b0000)]
+  0x0000000028b60000 JavaThread "kafka-scheduler-7" daemon [_thread_blocked, id=25104, stack(0x000000002f0b0000,0x000000002f1b0000)]
+  0x0000000028b5b000 JavaThread "ExpirationReaper-0-DeleteRecords" [_thread_blocked, id=25520, stack(0x000000002efb0000,0x000000002f0b0000)]
+  0x0000000029cbc000 JavaThread "ExpirationReaper-0-Fetch" [_thread_blocked, id=25652, stack(0x000000002eeb0000,0x000000002efb0000)]
+  0x0000000029cbb800 JavaThread "ExpirationReaper-0-Produce" [_thread_blocked, id=27412, stack(0x000000002edb0000,0x000000002eeb0000)]
+  0x0000000029cb6000 JavaThread "kafka-socket-acceptor-ListenerName(SASL_PLAINTEXT)-SASL_PLAINTEXT-9095" [_thread_in_native, id=9904, stack(0x000000002ecb0000,0x000000002edb0000)]
+  0x0000000029cb8800 JavaThread "kafka-socket-acceptor-ListenerName(PLAINTEXT)-PLAINTEXT-9092" [_thread_in_native, id=25208, stack(0x000000002e9b0000,0x000000002eab0000)]
+  0x0000000029cb7000 JavaThread "kafka-log-cleaner-thread-0" [_thread_blocked, id=31952, stack(0x000000002e6b0000,0x000000002e7b0000)]
+  0x0000000029cb7800 JavaThread "kafka-scheduler-6" daemon [_thread_blocked, id=30924, stack(0x000000002e5b0000,0x000000002e6b0000)]
+  0x0000000029cba000 JavaThread "kafka-scheduler-5" daemon [_thread_blocked, id=7144, stack(0x000000002e4b0000,0x000000002e5b0000)]
+  0x0000000029cba800 JavaThread "kafka-scheduler-4" daemon [_thread_blocked, id=7244, stack(0x000000002e3b0000,0x000000002e4b0000)]
+  0x0000000029cb9000 JavaThread "kafka-scheduler-3" daemon [_thread_blocked, id=1328, stack(0x000000002e2b0000,0x000000002e3b0000)]
+  0x0000000029cb5800 JavaThread "kafka-scheduler-2" daemon [_thread_blocked, id=18760, stack(0x000000002e1b0000,0x000000002e2b0000)]
+  0x0000000029c4e000 JavaThread "kafka-scheduler-1" daemon [_thread_blocked, id=32268, stack(0x000000002e0b0000,0x000000002e1b0000)]
+  0x0000000029c4c000 JavaThread "kafka-scheduler-0" daemon [_thread_blocked, id=19300, stack(0x000000002cbb0000,0x000000002ccb0000)]
+  0x0000000029d7b000 JavaThread "ThrottledRequestReaper-Request" [_thread_blocked, id=30948, stack(0x000000002b5b0000,0x000000002b6b0000)]
+  0x0000000029d69800 JavaThread "ThrottledRequestReaper-Produce" [_thread_blocked, id=23896, stack(0x000000002b4b0000,0x000000002b5b0000)]
+  0x0000000029d6a800 JavaThread "ThrottledRequestReaper-Fetch" [_thread_blocked, id=21420, stack(0x000000002b3b0000,0x000000002b4b0000)]
+  0x0000000029d61800 JavaThread "SensorExpiryThread" daemon [_thread_blocked, id=31124, stack(0x000000002b0b0000,0x000000002b1b0000)]
+  0x0000000028fa7000 JavaThread "main-EventThread" daemon [_thread_blocked, id=31016, stack(0x000000002abb0000,0x000000002acb0000)]
+  0x0000000028fa6000 JavaThread "main-SendThread(0:0:0:0:0:0:0:1:2181)" daemon [_thread_blocked, id=32316, stack(0x000000002aab0000,0x000000002abb0000)]
+  0x000000002920e800 JavaThread "metrics-meter-tick-thread-2" daemon [_thread_blocked, id=9948, stack(0x000000002a470000,0x000000002a570000)]
+  0x000000002952c800 JavaThread "metrics-meter-tick-thread-1" daemon [_thread_blocked, id=2112, stack(0x000000002a370000,0x000000002a470000)]
+  0x000000002771b800 JavaThread "Service Thread" daemon [_thread_blocked, id=16316, stack(0x00000000284a0000,0x00000000285a0000)]
+  0x0000000027663000 JavaThread "C1 CompilerThread3" daemon [_thread_blocked, id=28688, stack(0x00000000283a0000,0x00000000284a0000)]
+  0x0000000027662800 JavaThread "C2 CompilerThread2" daemon [_thread_blocked, id=30240, stack(0x00000000282a0000,0x00000000283a0000)]
+  0x000000002765f800 JavaThread "C2 CompilerThread1" daemon [_thread_blocked, id=25216, stack(0x00000000281a0000,0x00000000282a0000)]
+  0x000000002765f000 JavaThread "C2 CompilerThread0" daemon [_thread_blocked, id=840, stack(0x00000000280a0000,0x00000000281a0000)]
+  0x00000000274f0800 JavaThread "JDWP Command Reader" daemon [_thread_in_native, id=31548, stack(0x0000000027fa0000,0x00000000280a0000)]
+  0x00000000274ed000 JavaThread "JDWP Event Helper Thread" daemon [_thread_blocked, id=34304, stack(0x0000000027ea0000,0x0000000027fa0000)]
+  0x00000000274eb800 JavaThread "JDWP Transport Listener: dt_socket" daemon [_thread_blocked, id=32248, stack(0x0000000027da0000,0x0000000027ea0000)]
+  0x00000000274d9000 JavaThread "Attach Listener" daemon [_thread_blocked, id=24604, stack(0x0000000027ca0000,0x0000000027da0000)]
+  0x00000000256ce800 JavaThread "Signal Dispatcher" daemon [_thread_blocked, id=2620, stack(0x0000000027ba0000,0x0000000027ca0000)]
+  0x00000000256bf800 JavaThread "Finalizer" daemon [_thread_blocked, id=32508, stack(0x00000000279a0000,0x0000000027aa0000)]
+  0x00000000274c0800 JavaThread "Reference Handler" daemon [_thread_blocked, id=30468, stack(0x00000000278a0000,0x00000000279a0000)]
+=>0x0000000002ec7000 JavaThread "main" [_thread_in_native, id=24812, stack(0x0000000002c70000,0x0000000002d70000)]
+
+Other Threads:
+  0x0000000002fbc800 VMThread [stack: 0x00000000273a0000,0x00000000274a0000] [id=28496]
+  0x0000000027721000 WatcherThread [stack: 0x00000000285a0000,0x00000000286a0000] [id=24064]
+
+VM state:not at safepoint (normal execution)
+
+VM Mutex/Monitor currently owned by a thread: None
+
+Heap:
+ PSYoungGen      total 147968K, used 70359K [0x000000071b180000, 0x0000000725680000, 0x00000007c0000000)
+  eden space 126976K, 55% used [0x000000071b180000,0x000000071f635ec0,0x0000000722d80000)
+  from space 20992K, 0% used [0x0000000722d80000,0x0000000722d80000,0x0000000724200000)
+  to   space 20992K, 0% used [0x0000000724200000,0x0000000724200000,0x0000000725680000)
+ ParOldGen       total 285696K, used 142083K [0x00000005d1400000, 0x00000005e2b00000, 0x000000071b180000)
+  object space 285696K, 49% used [0x00000005d1400000,0x00000005d9ec0f00,0x00000005e2b00000)
+ Metaspace       used 26166K, capacity 26358K, committed 26624K, reserved 1073152K
+  class space    used 3479K, capacity 3567K, committed 3584K, reserved 1048576K
+
+Card table byte_map: [0x0000000012380000,0x0000000013300000] byte_map_base: 0x000000000f4f6000
+
+Marking Bits: (ParMarkBitMap*) 0x000000007069c090
+ Begin Bits: [0x0000000014550000, 0x000000001c100000)
+ End Bits:   [0x000000001c100000, 0x0000000023cb0000)
+
+Polling page: 0x0000000002b60000
+
+CodeCache: size=245760Kb used=6111Kb max_used=6111Kb free=239648Kb
+ bounds [0x0000000002fc0000, 0x00000000035c0000, 0x0000000011fc0000]
+ total_blobs=2462 nmethods=1939 adapters=444
+ compilation: enabled
+
+Compilation events (10 events):
+Event: 14.414 Thread 0x0000000027663000 1941       1       java.util.concurrent.ThreadPoolExecutor::getQueue (5 bytes)
+Event: 14.414 Thread 0x0000000027663000 nmethod 1941 0x00000000030cf910 code [0x00000000030cfa60, 0x00000000030cfb70]
+Event: 14.414 Thread 0x0000000027663000 1942  s    3       java.lang.StringBuffer::append (13 bytes)
+Event: 14.414 Thread 0x0000000027663000 nmethod 1942 0x00000000035ba850 code [0x00000000035ba9c0, 0x00000000035bace8]
+Event: 14.415 Thread 0x0000000027663000 1943       3       java.util.concurrent.locks.AbstractQueuedSynchronizer$Node::predecessor (19 bytes)
+Event: 14.415 Thread 0x0000000027663000 nmethod 1943 0x00000000035badd0 code [0x00000000035baf40, 0x00000000035bb1a8]
+Event: 14.419 Thread 0x0000000027663000 1944       3       java.util.concurrent.ThreadPoolExecutor::runStateOf (5 bytes)
+Event: 14.420 Thread 0x0000000027663000 nmethod 1944 0x00000000035bb290 code [0x00000000035bb3e0, 0x00000000035bb510]
+Event: 14.422 Thread 0x0000000027663000 1945       3       java.util.concurrent.ThreadPoolExecutor::workerCountOf (5 bytes)
+Event: 14.422 Thread 0x0000000027663000 nmethod 1945 0x00000000035bb590 code [0x00000000035bb6e0, 0x00000000035bb810]
+
+GC Heap History (4 events):
+Event: 6.773 GC heap before
+{Heap before GC invocations=1 (full 0):
+ PSYoungGen      total 147968K, used 126976K [0x000000071b180000, 0x0000000725680000, 0x00000007c0000000)
+  eden space 126976K, 100% used [0x000000071b180000,0x0000000722d80000,0x0000000722d80000)
+  from space 20992K, 0% used [0x0000000724200000,0x0000000724200000,0x0000000725680000)
+  to   space 20992K, 0% used [0x0000000722d80000,0x0000000722d80000,0x0000000724200000)
+ ParOldGen       total 338944K, used 131072K [0x00000005d1400000, 0x00000005e5f00000, 0x000000071b180000)
+  object space 338944K, 38% used [0x00000005d1400000,0x00000005d9400010,0x00000005e5f00000)
+ Metaspace       used 20903K, capacity 21052K, committed 21296K, reserved 1067008K
+  class space    used 2815K, capacity 2886K, committed 2944K, reserved 1048576K
+Event: 6.782 GC heap after
+Heap after GC invocations=1 (full 0):
+ PSYoungGen      total 147968K, used 11724K [0x000000071b180000, 0x0000000725680000, 0x00000007c0000000)
+  eden space 126976K, 0% used [0x000000071b180000,0x000000071b180000,0x0000000722d80000)
+  from space 20992K, 55% used [0x0000000722d80000,0x00000007238f3080,0x0000000724200000)
+  to   space 20992K, 0% used [0x0000000724200000,0x0000000724200000,0x0000000725680000)
+ ParOldGen       total 338944K, used 131088K [0x00000005d1400000, 0x00000005e5f00000, 0x000000071b180000)
+  object space 338944K, 38% used [0x00000005d1400000,0x00000005d9404010,0x00000005e5f00000)
+ Metaspace       used 20903K, capacity 21052K, committed 21296K, reserved 1067008K
+  class space    used 2815K, capacity 2886K, committed 2944K, reserved 1048576K
+}
+Event: 6.782 GC heap before
+{Heap before GC invocations=2 (full 1):
+ PSYoungGen      total 147968K, used 11724K [0x000000071b180000, 0x0000000725680000, 0x00000007c0000000)
+  eden space 126976K, 0% used [0x000000071b180000,0x000000071b180000,0x0000000722d80000)
+  from space 20992K, 55% used [0x0000000722d80000,0x00000007238f3080,0x0000000724200000)
+  to   space 20992K, 0% used [0x0000000724200000,0x0000000724200000,0x0000000725680000)
+ ParOldGen       total 338944K, used 131088K [0x00000005d1400000, 0x00000005e5f00000, 0x000000071b180000)
+  object space 338944K, 38% used [0x00000005d1400000,0x00000005d9404010,0x00000005e5f00000)
+ Metaspace       used 20903K, capacity 21052K, committed 21296K, reserved 1067008K
+  class space    used 2815K, capacity 2886K, committed 2944K, reserved 1048576K
+Event: 6.802 GC heap after
+Heap after GC invocations=2 (full 1):
+ PSYoungGen      total 147968K, used 0K [0x000000071b180000, 0x0000000725680000, 0x00000007c0000000)
+  eden space 126976K, 0% used [0x000000071b180000,0x000000071b180000,0x0000000722d80000)
+  from space 20992K, 0% used [0x0000000722d80000,0x0000000722d80000,0x0000000724200000)
+  to   space 20992K, 0% used [0x0000000724200000,0x0000000724200000,0x0000000725680000)
+ ParOldGen       total 285696K, used 142083K [0x00000005d1400000, 0x00000005e2b00000, 0x000000071b180000)
+  object space 285696K, 49% used [0x00000005d1400000,0x00000005d9ec0f00,0x00000005e2b00000)
+ Metaspace       used 20903K, capacity 21052K, committed 21296K, reserved 1067008K
+  class space    used 2815K, capacity 2886K, committed 2944K, reserved 1048576K
+}
+
+Deoptimization events (10 events):
+Event: 9.197 Thread 0x0000000002ec7000 Uncommon trap: reason=class_check action=maybe_recompile pc=0x00000000033536d0 method=java.util.concurrent.ConcurrentHashMap.putVal(Ljava/lang/Object;Ljava/lang/Object;Z)Ljava/lang/Object; @ 192
+Event: 9.203 Thread 0x0000000002ec7000 Uncommon trap: reason=unstable_if action=reinterpret pc=0x0000000003231f04 method=java.util.HashMap.getNode(ILjava/lang/Object;)Ljava/util/HashMap$Node; @ 129
+Event: 9.203 Thread 0x0000000002ec7000 Uncommon trap: reason=bimorphic action=maybe_recompile pc=0x0000000003506bac method=java.util.HashMap.putVal(ILjava/lang/Object;Ljava/lang/Object;ZZ)Ljava/lang/Object; @ 203
+Event: 9.204 Thread 0x0000000002ec7000 Uncommon trap: reason=bimorphic action=maybe_recompile pc=0x0000000003506bac method=java.util.HashMap.putVal(ILjava/lang/Object;Ljava/lang/Object;ZZ)Ljava/lang/Object; @ 203
+Event: 9.696 Thread 0x0000000002ec7000 Uncommon trap: reason=bimorphic action=maybe_recompile pc=0x000000000349041c method=scala.collection.mutable.MapBuilder.$plus$eq(Lscala/Tuple2;)Lscala/collection/mutable/MapBuilder; @ 6
+Event: 9.696 Thread 0x0000000002ec7000 Uncommon trap: reason=bimorphic action=maybe_recompile pc=0x000000000349041c method=scala.collection.mutable.MapBuilder.$plus$eq(Lscala/Tuple2;)Lscala/collection/mutable/MapBuilder; @ 6
+Event: 9.697 Thread 0x0000000002ec7000 Uncommon trap: reason=bimorphic action=maybe_recompile pc=0x000000000349041c method=scala.collection.mutable.MapBuilder.$plus$eq(Lscala/Tuple2;)Lscala/collection/mutable/MapBuilder; @ 6
+Event: 9.697 Thread 0x0000000002ec7000 Uncommon trap: reason=bimorphic action=maybe_recompile pc=0x000000000349041c method=scala.collection.mutable.MapBuilder.$plus$eq(Lscala/Tuple2;)Lscala/collection/mutable/MapBuilder; @ 6
+Event: 10.062 Thread 0x0000000002ec7000 Uncommon trap: reason=bimorphic action=maybe_recompile pc=0x0000000003506bac method=java.util.HashMap.putVal(ILjava/lang/Object;Ljava/lang/Object;ZZ)Ljava/lang/Object; @ 203
+Event: 10.062 Thread 0x0000000002ec7000 Uncommon trap: reason=bimorphic action=maybe_recompile pc=0x0000000003506bac method=java.util.HashMap.putVal(ILjava/lang/Object;Ljava/lang/Object;ZZ)Ljava/lang/Object; @ 203
+
+Classes redefined (0 events):
+No events
+
+Internal exceptions (10 events):
+Event: 5.814 Thread 0x0000000029c1b000 Exception <a 'sun/nio/fs/WindowsException'> (0x00000007222745d8) thrown at [C:\jenkins\workspace\zulu8-silver-cpe-build-win64\zulu-src\hotspot\src\share\vm\prims\jni.cpp, line 709]
+Event: 5.838 Thread 0x0000000029c1b000 Exception <a 'sun/nio/fs/WindowsException'> (0x00000007222a3bf8) thrown at [C:\jenkins\workspace\zulu8-silver-cpe-build-win64\zulu-src\hotspot\src\share\vm\prims\jni.cpp, line 709]
+Event: 6.417 Thread 0x0000000029c1b000 Exception <a 'sun/nio/fs/WindowsException'> (0x000000072270d240) thrown at [C:\jenkins\workspace\zulu8-silver-cpe-build-win64\zulu-src\hotspot\src\share\vm\prims\jni.cpp, line 709]
+Event: 6.417 Thread 0x0000000029c1b000 Exception <a 'sun/nio/fs/WindowsException'> (0x000000072270e028) thrown at [C:\jenkins\workspace\zulu8-silver-cpe-build-win64\zulu-src\hotspot\src\share\vm\prims\jni.cpp, line 709]
+Event: 6.470 Thread 0x0000000002ec7000 Exception <a 'sun/nio/fs/WindowsException'> (0x0000000722115070) thrown at [C:\jenkins\workspace\zulu8-silver-cpe-build-win64\zulu-src\hotspot\src\share\vm\prims\jni.cpp, line 709]
+Event: 9.074 Thread 0x0000000002ec7000 Exception <a 'sun/nio/fs/WindowsException'> (0x000000071d44d7d0) thrown at [C:\jenkins\workspace\zulu8-silver-cpe-build-win64\zulu-src\hotspot\src\share\vm\prims\jni.cpp, line 709]
+Event: 9.168 Thread 0x0000000002ec7000 Exception <a 'java/lang/ArrayIndexOutOfBoundsException'> (0x000000071d4fc498) thrown at [C:\jenkins\workspace\zulu8-silver-cpe-build-win64\zulu-src\hotspot\src\share\vm\runtime\sharedRuntime.cpp, line 605]
+Event: 9.169 Thread 0x0000000002ec7000 Exception <a 'java/lang/ArrayIndexOutOfBoundsException'> (0x000000071d505250) thrown at [C:\jenkins\workspace\zulu8-silver-cpe-build-win64\zulu-src\hotspot\src\share\vm\runtime\sharedRuntime.cpp, line 605]
+Event: 9.169 Thread 0x0000000002ec7000 Exception <a 'java/lang/ArrayIndexOutOfBoundsException'> (0x000000071d506e30) thrown at [C:\jenkins\workspace\zulu8-silver-cpe-build-win64\zulu-src\hotspot\src\share\vm\runtime\sharedRuntime.cpp, line 605]
+Event: 9.300 Thread 0x0000000002ec7000 Exception <a 'sun/nio/fs/WindowsException'> (0x000000071e2c6660) thrown at [C:\jenkins\workspace\zulu8-silver-cpe-build-win64\zulu-src\hotspot\src\share\vm\prims\jni.cpp, line 709]
+
+Events (10 events):
+Event: 14.463 loading class com/microsoft/autopilot/ApRuntime
+Event: 14.463 loading class com/microsoft/autopilot/ApRuntime done
+Event: 14.466 loading class java/lang/ClassLoaderHelper
+Event: 14.466 loading class java/lang/ClassLoaderHelper done
+Event: 14.515 loading class org/apache/zookeeper/ClientCnxn$1
+Event: 14.515 loading class org/apache/zookeeper/ClientCnxn$1 done
+Event: 14.515 loading class kafka/zk/KafkaZkClient$$anonfun$retryRequestsUntilConnected$3
+Event: 14.515 loading class kafka/zk/KafkaZkClient$$anonfun$retryRequestsUntilConnected$3 done
+Event: 14.523 loading class kafka/zookeeper/ZooKeeperClient$$anonfun$waitUntilConnected$1
+Event: 14.523 loading class kafka/zookeeper/ZooKeeperClient$$anonfun$waitUntilConnected$1 done
+
+
+Dynamic libraries:
+0x00007ff6c4200000 - 0x00007ff6c4235000 	D:\CxCache\Zulu.OpenJDK.Corext.8.32.0.2\zulu8.32.0.2-sa-jdk8.0.191-win_x64\jre\bin\java.exe
+0x00007ff9525d0000 - 0x00007ff9527bd000 	C:\WINDOWS\SYSTEM32\ntdll.dll
+0x00007ff950700000 - 0x00007ff9507b3000 	C:\WINDOWS\System32\KERNEL32.DLL
+0x00007ff94f530000 - 0x00007ff94f7c3000 	C:\WINDOWS\System32\KERNELBASE.dll
+0x00007ff94fd70000 - 0x00007ff94fe13000 	C:\WINDOWS\System32\ADVAPI32.dll
+0x00007ff950850000 - 0x00007ff9508ee000 	C:\WINDOWS\System32\msvcrt.dll
+0x00007ff9501e0000 - 0x00007ff95027e000 	C:\WINDOWS\System32\sechost.dll
+0x00007ff94fe40000 - 0x00007ff94ff62000 	C:\WINDOWS\System32\RPCRT4.dll
+0x00007ff94ffd0000 - 0x00007ff950167000 	C:\WINDOWS\System32\USER32.dll
+0x00007ff94eaf0000 - 0x00007ff94eb10000 	C:\WINDOWS\System32\win32u.dll
+0x00007ff950b20000 - 0x00007ff950b49000 	C:\WINDOWS\System32\GDI32.dll
+0x00007ff94e8e0000 - 0x00007ff94ea7a000 	C:\WINDOWS\System32\gdi32full.dll
+0x00007ff94ec40000 - 0x00007ff94ece0000 	C:\WINDOWS\System32\msvcp_win.dll
+0x00007ff94ece0000 - 0x00007ff94edda000 	C:\WINDOWS\System32\ucrtbase.dll
+0x00007ff940250000 - 0x00007ff9404c9000 	C:\WINDOWS\WinSxS\amd64_microsoft.windows.common-controls_6595b64144ccf1df_6.0.17763.503_none_05b23ef40721f4ae\COMCTL32.dll
+0x00007ff952040000 - 0x00007ff95236c000 	C:\WINDOWS\System32\combase.dll
+0x00007ff94ebc0000 - 0x00007ff94ec3e000 	C:\WINDOWS\System32\bcryptPrimitives.dll
+0x00007ff94f9e0000 - 0x00007ff94fa0e000 	C:\WINDOWS\System32\IMM32.DLL
+0x0000000070720000 - 0x00000000707f2000 	D:\CxCache\Zulu.OpenJDK.Corext.8.32.0.2\zulu8.32.0.2-sa-jdk8.0.191-win_x64\jre\bin\msvcr100.dll
+0x000000006fed0000 - 0x0000000070719000 	D:\CxCache\Zulu.OpenJDK.Corext.8.32.0.2\zulu8.32.0.2-sa-jdk8.0.191-win_x64\jre\bin\server\jvm.dll
+0x00007ff94f860000 - 0x00007ff94f868000 	C:\WINDOWS\System32\PSAPI.DLL
+0x00007ff947d10000 - 0x00007ff947d34000 	C:\WINDOWS\SYSTEM32\WINMM.dll
+0x00007ff948e90000 - 0x00007ff948e99000 	C:\WINDOWS\SYSTEM32\WSOCK32.dll
+0x00007ff950170000 - 0x00007ff9501dd000 	C:\WINDOWS\System32\WS2_32.dll
+0x00007ff94a010000 - 0x00007ff94a01a000 	C:\WINDOWS\SYSTEM32\VERSION.dll
+0x00007ff947ce0000 - 0x00007ff947d0d000 	C:\WINDOWS\SYSTEM32\WINMMBASE.dll
+0x00007ff94eaa0000 - 0x00007ff94eaea000 	C:\WINDOWS\System32\cfgmgr32.dll
+0x00007ff94ced0000 - 0x00007ff94cedf000 	D:\CxCache\Zulu.OpenJDK.Corext.8.32.0.2\zulu8.32.0.2-sa-jdk8.0.191-win_x64\jre\bin\verify.dll
+0x00007ff93c0d0000 - 0x00007ff93c0f9000 	D:\CxCache\Zulu.OpenJDK.Corext.8.32.0.2\zulu8.32.0.2-sa-jdk8.0.191-win_x64\jre\bin\java.dll
+0x00007ff9312a0000 - 0x00007ff9312d5000 	D:\CxCache\Zulu.OpenJDK.Corext.8.32.0.2\zulu8.32.0.2-sa-jdk8.0.191-win_x64\jre\bin\jdwp.dll
+0x00007ff93bf30000 - 0x00007ff93bf38000 	D:\CxCache\Zulu.OpenJDK.Corext.8.32.0.2\zulu8.32.0.2-sa-jdk8.0.191-win_x64\jre\bin\npt.dll
+0x00007ff932460000 - 0x00007ff932483000 	D:\CxCache\Zulu.OpenJDK.Corext.8.32.0.2\zulu8.32.0.2-sa-jdk8.0.191-win_x64\jre\bin\instrument.dll
+0x00007ff93c170000 - 0x00007ff93c186000 	D:\CxCache\Zulu.OpenJDK.Corext.8.32.0.2\zulu8.32.0.2-sa-jdk8.0.191-win_x64\jre\bin\zip.dll
+0x00007ff950b50000 - 0x00007ff952040000 	C:\WINDOWS\System32\SHELL32.dll
+0x00007ff94fcc0000 - 0x00007ff94fd68000 	C:\WINDOWS\System32\shcore.dll
+0x00007ff94ede0000 - 0x00007ff94f52a000 	C:\WINDOWS\System32\windows.storage.dll
+0x00007ff94e5d0000 - 0x00007ff94e5f4000 	C:\WINDOWS\System32\profapi.dll
+0x00007ff94e640000 - 0x00007ff94e69d000 	C:\WINDOWS\System32\powrprof.dll
+0x00007ff94fbf0000 - 0x00007ff94fc42000 	C:\WINDOWS\System32\shlwapi.dll
+0x00007ff94e600000 - 0x00007ff94e611000 	C:\WINDOWS\System32\kernel.appcore.dll
+0x00007ff94ea80000 - 0x00007ff94ea97000 	C:\WINDOWS\System32\cryptsp.dll
+0x00007ff93be90000 - 0x00007ff93be99000 	D:\CxCache\Zulu.OpenJDK.Corext.8.32.0.2\zulu8.32.0.2-sa-jdk8.0.191-win_x64\jre\bin\dt_socket.dll
+0x00007ff94da20000 - 0x00007ff94da87000 	C:\WINDOWS\system32\mswsock.dll
+0x00007ff94cac0000 - 0x00007ff94cacd000 	D:\CxCache\Zulu.OpenJDK.Corext.8.32.0.2\zulu8.32.0.2-sa-jdk8.0.191-win_x64\jre\bin\management.dll
+0x00007ff93bff0000 - 0x00007ff93c00a000 	D:\CxCache\Zulu.OpenJDK.Corext.8.32.0.2\zulu8.32.0.2-sa-jdk8.0.191-win_x64\jre\bin\net.dll
+0x00007ff93bfb0000 - 0x00007ff93bfc1000 	D:\CxCache\Zulu.OpenJDK.Corext.8.32.0.2\zulu8.32.0.2-sa-jdk8.0.191-win_x64\jre\bin\nio.dll
+0x00007ff943bd0000 - 0x00007ff943be6000 	C:\WINDOWS\system32\napinsp.dll
+0x00007ff943b70000 - 0x00007ff943b8a000 	C:\WINDOWS\system32\pnrpnsp.dll
+0x00007ff94d7d0000 - 0x00007ff94d896000 	C:\WINDOWS\SYSTEM32\DNSAPI.dll
+0x00007ff950840000 - 0x00007ff950848000 	C:\WINDOWS\System32\NSI.dll
+0x00007ff94d790000 - 0x00007ff94d7cd000 	C:\WINDOWS\SYSTEM32\IPHLPAPI.DLL
+0x00007ff943bf0000 - 0x00007ff943bfe000 	C:\WINDOWS\System32\winrnr.dll
+0x00007ff949c90000 - 0x00007ff949cab000 	C:\WINDOWS\system32\NLAapi.dll
+0x00007ff947c00000 - 0x00007ff947c15000 	C:\WINDOWS\system32\wshbth.dll
+0x00007ff9458b0000 - 0x00007ff9458ba000 	C:\Windows\System32\rasadhlp.dll
+0x00007ff948340000 - 0x00007ff9483b9000 	C:\WINDOWS\System32\fwpuclnt.dll
+0x00007ff94f7d0000 - 0x00007ff94f7f6000 	C:\WINDOWS\System32\bcrypt.dll
+0x00007ff94d390000 - 0x00007ff94d3c3000 	C:\WINDOWS\system32\rsaenh.dll
+0x00007ff94e4d0000 - 0x00007ff94e4f8000 	C:\WINDOWS\SYSTEM32\USERENV.dll
+0x00007ff94dc50000 - 0x00007ff94dc5c000 	C:\WINDOWS\SYSTEM32\CRYPTBASE.dll
+0x00007ff9481b0000 - 0x00007ff9481c6000 	C:\WINDOWS\SYSTEM32\dhcpcsvc6.DLL
+0x00007ff948190000 - 0x00007ff9481ac000 	C:\WINDOWS\SYSTEM32\dhcpcsvc.DLL
+0x00007ff9323c0000 - 0x00007ff9323e4000 	D:\CxCache\Zulu.OpenJDK.Corext.8.32.0.2\zulu8.32.0.2-sa-jdk8.0.191-win_x64\jre\bin\sunec.dll
+0x00007ff94cb40000 - 0x00007ff94cb4b000 	D:\CxCache\Zulu.OpenJDK.Corext.8.32.0.2\zulu8.32.0.2-sa-jdk8.0.191-win_x64\jre\bin\sunmscapi.dll
+0x00007ff94e700000 - 0x00007ff94e8db000 	C:\WINDOWS\System32\CRYPT32.dll
+0x00007ff94e620000 - 0x00007ff94e632000 	C:\WINDOWS\System32\MSASN1.dll
+0x00007ff91d970000 - 0x00007ff91da48000 	D:\repo\Azure\Compute-Move\target\distrib\retail\amd64\app\KafkaBroker\libs\ApSdk4j.dll
+0x00007ff94dd40000 - 0x00007ff94dd66000 	C:\WINDOWS\SYSTEM32\ncrypt.dll
+0x00007ff94e110000 - 0x00007ff94e2fd000 	C:\WINDOWS\SYSTEM32\dbghelp.dll
+0x00007ff948670000 - 0x00007ff948761000 	C:\WINDOWS\SYSTEM32\WINHTTP.dll
+0x00007ff93bcb0000 - 0x00007ff93bcbe000 	C:\WINDOWS\SYSTEM32\HTTPAPI.dll
+0x00007ff9463f0000 - 0x00007ff946407000 	C:\WINDOWS\SYSTEM32\NETAPI32.dll
+0x00007ff94dd00000 - 0x00007ff94dd3c000 	C:\WINDOWS\SYSTEM32\NTASN1.dll
+0x00007ff93c010000 - 0x00007ff93c026000 	C:\Program Files\JetBrains\IntelliJ IDEA Community Edition 2019.1\jre64\bin\VCRUNTIME140.dll
+0x00007ff929a40000 - 0x00007ff929adb000 	C:\Program Files\JetBrains\IntelliJ IDEA Community Edition 2019.1\jre64\bin\MSVCP140.dll
+0x00007ff94e020000 - 0x00007ff94e04a000 	C:\WINDOWS\SYSTEM32\dbgcore.DLL
+0x00007ff94d8a0000 - 0x00007ff94d8ae000 	C:\WINDOWS\SYSTEM32\NETUTILS.DLL
+0x00007ff93bb80000 - 0x00007ff93bba6000 	C:\WINDOWS\SYSTEM32\SRVCLI.DLL
+
+VM Arguments:
+jvm_args: -agentlib:jdwp=transport=dt_socket,address=127.0.0.1:30813,suspend=y,server=n -Djava.security.auth.login.config=file:D:\repo\Azure\Compute-Move\target\distrib\retail\amd64\app\KafkaBroker\config\kafka_server_jaas.conf -Ddsts.serviceDnsName=co2agg04-dsts-aware-service.core.windows-tst.net -Ddsts.serviceName=ZooKeeperServiceTest -Ddsts.dstsRealm=realm://dsts.core.azure-test.net/ -Ddsts.dstsDnsName=co2agg04-dsts.dsts.core.azure-test.net -Ddsts.authenticationJ4nLibrary=DstsAuthentication.j4n.dll -Dlog4j.configuration=file:D:\github\kafka\config\log4j.properties -Djava.library.path=D:\repo\Azure\Compute-Move\target\distrib\retail\amd64\app\KafkaBroker\libs -Ddsts.metadata.configfile=Dsts-Prod.ini -javaagent:C:\Users\qinwu\.IdeaIC2019.1\system\groovyHotSwap\gragent.jar -javaagent:C:\Users\qinwu\.IdeaIC2019.1\system\captureAgent\debugger-agent.jar -Dfile.encoding=UTF-8 
+java_command: kafka.Kafka ..\..\config\server.properties
+java_class_path (initial): D:\CxCache\Zulu.OpenJDK.Corext.8.32.0.2\zulu8.32.0.2-sa-jdk8.0.191-win_x64\jre\lib\charsets.jar;D:\CxCache\Zulu.OpenJDK.Corext.8.32.0.2\zulu8.32.0.2-sa-jdk8.0.191-win_x64\jre\lib\ext\access-bridge-64.jar;D:\CxCache\Zulu.OpenJDK.Corext.8.32.0.2\zulu8.32.0.2-sa-jdk8.0.191-win_x64\jre\lib\ext\cldrdata.jar;D:\CxCache\Zulu.OpenJDK.Corext.8.32.0.2\zulu8.32.0.2-sa-jdk8.0.191-win_x64\jre\lib\ext\dnsns.jar;D:\CxCache\Zulu.OpenJDK.Corext.8.32.0.2\zulu8.32.0.2-sa-jdk8.0.191-win_x64\jre\lib\ext\jaccess.jar;D:\CxCache\Zulu.OpenJDK.Corext.8.32.0.2\zulu8.32.0.2-sa-jdk8.0.191-win_x64\jre\lib\ext\localedata.jar;D:\CxCache\Zulu.OpenJDK.Corext.8.32.0.2\zulu8.32.0.2-sa-jdk8.0.191-win_x64\jre\lib\ext\nashorn.jar;D:\CxCache\Zulu.OpenJDK.Corext.8.32.0.2\zulu8.32.0.2-sa-jdk8.0.191-win_x64\jre\lib\ext\sunec.jar;D:\CxCache\Zulu.OpenJDK.Corext.8.32.0.2\zulu8.32.0.2-sa-jdk8.0.191-win_x64\jre\lib\ext\sunjce_provider.jar;D:\CxCache\Zulu.OpenJDK.Corext.8.32.0.2\zulu8.32.0.2-sa-jdk8.0.191-win_x64\jre\lib\ext\sunmscapi.jar;D:\CxCache\Zulu.OpenJDK.Corext.8.32.0.2\zulu8.32.0.2-sa-jdk8.0.191-win_x64\jre\lib\ext\sunpkcs11.jar;D:\CxCache\Zulu.OpenJDK.Corext.8.32.0.2\zulu8.32.0.2-sa-jdk8.0.191-win_x64\jre\lib\ext\zipfs.jar;D:\CxCache\Zulu.OpenJDK.Corext.8.32.0.2\zulu8.32.0.2-sa-jdk8.0.191-win_x64\jre\lib\jce.jar;D:\CxCache\Zulu.OpenJDK.Corext.8.32.0.2\zulu8.32.0.2-sa-jdk8.0.191-win_x64\jre\lib\jsse.jar;D:\CxCache\Zulu.OpenJDK.Corext.8.32.0.2\zulu8.32.0.2-sa-jdk8.0.191-win_x64\jre\lib\management-agent.jar;D:\CxCache\Zulu.OpenJDK.Corext.8.32.0.2\zulu8.32.0.2-sa-jdk8.0.191-win_x64\jre\lib\resources.jar;D:\CxCache\Zulu.OpenJDK.Corext.8.32.0.2\zulu8.32.0.2-sa-jdk8.0.191-win_x64\jre\lib\rt.jar;D:\github\kafka\core\out\production\classes;D:\github\kafka\repository\ApSdk4j.jar;D:\github\kafka\clients\out\production\classes;D:\github\kafka\clients\out\production\resources;C:\Users\qinwu\.gradle\caches\modules-2\files-2.1\com.fasterxml.jackson.core\jackson-databind\2.9.6\cfa4f316351a91
+Launcher Type: SUN_STANDARD
+
+Environment Variables:
+JAVA_HOME=D:\CxCache\Zulu.OpenJDK.Corext.8.32.0.2\zulu8.32.0.2-sa-jdk8.0.191-win_x64
+PATH=C:\Program Files\Common Files\Microsoft Shared\Microsoft Online Services;C:\Program Files (x86)\Common Files\Microsoft Shared\Microsoft Online Services;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0\;C:\Program Files\Microsoft SQL Server\130\Tools\Binn\;C:\WINDOWS\system32\config\systemprofile\.dnx\bin;C:\Program Files\Microsoft DNX\Dnvm\;C:\Program Files\Microsoft SQL Server\120\Tools\Binn\;C:\ProgramData\chocolatey\bin;C:\Program Files\Git\cmd;D:\tools\gradle\bin;C:\Program Files\Microsoft SQL Server\110\Tools\Binn\;C:\Program Files (x86)\Microsoft SDKs\TypeScript\1.0\;C:\Program Files (x86)\Vim\vim80\;C:\XTS\5.1055\;D:\tools\ProRab\;C:\Program Files (x86)\scala\bin;D:\CxCache\Zulu.OpenJDK.Corext.8.32.0.2\zulu8.32.0.2-sa-jdk8.0.191-win_x64\bin;C:\Program Files (x86)\Windows Kits\10\Windows Performance Toolkit\;C:\WINDOWS\System32\OpenSSH\;D:\Program Files\nodejs\;D:\tools\apache-maven\bin;D:\tools\apache-ant-1.10.3\bin;C:\Program Files (x86)\Microsoft SQL Server\100\Tools\Binn\;C:\Program Files (x86)\Microsoft SQL Server\100\DTS\Binn\;D:\tools\apache-maven\bin;C:\Program Files\dotnet\;C:\Users\qinwu\AppData\Local\CloudBuild;C:\Users\qinwu\AppData\Local\Microsoft\WindowsApps;C:\Program Files (x86)\Git\cmd;C:\Users\qinwu\AppData\Roaming\npm;C:\Program Files\Microsoft VS Code\bin;C:\Users\qinwu\.dotnet\tools;C:\Users\qinwu\AppData\Local\Microsoft\WindowsApps;
+USERNAME=qinwu
+OS=Windows_NT
+PROCESSOR_IDENTIFIER=Intel64 Family 6 Model 158 Stepping 9, GenuineIntel
+
+
+
+---------------  S Y S T E M  ---------------
+
+OS: Windows 10.0 , 64 bit Build 17763 (10.0.17763.475)
+
+CPU:total 8 (initial active 8) (4 cores per cpu, 2 threads per core) family 6 model 158 stepping 9, cmov, cx8, fxsr, mmx, sse, sse2, sse3, ssse3, sse4.1, sse4.2, popcnt, avx, avx2, aes, clmul, erms, rtm, 3dnowpref, lzcnt, ht, tsc, tscinvbit, bmi1, bmi2, adx
+
+Memory: 4k page, physical 32416336k(14118144k free), swap 38200632k(6479200k free)
+
+vm_info: OpenJDK 64-Bit Server VM (25.191-b05) for windows-amd64 JRE (1.8.0_191-b05), built on Oct 14 2018 12:43:55 by "tester" with MS VC++ 10.0 (VS2010)
+
+time: Mon Jun 10 17:00:44 2019
+elapsed time: 14 seconds (0d 0h 0m 14s)
+
