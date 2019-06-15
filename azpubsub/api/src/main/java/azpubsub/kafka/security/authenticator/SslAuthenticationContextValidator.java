@@ -5,5 +5,5 @@ import java.util.Map;
 
 public interface SslAuthenticationContextValidator {
     void configure(Map<String, ?> props);
-    AzPubSubPrincipal authenticate(SSLSession sslSession, String acl);
+    AzPubSubPrincipal authenticate(SSLSession sslSession);
 }

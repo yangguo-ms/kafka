@@ -16,7 +16,7 @@
   */
 
 
-package kafka.security.auth
+package azpubsub.kafka.security.auth
 
 import java.net.InetAddress
 import java.nio.charset.StandardCharsets
@@ -26,6 +26,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import java.util.{Date, Locale, TimeZone}
 
+import azpubsub.kafka.security.auth.SimpleAclAuthorizer.VersionedAcls
 import com.yammer.metrics.core.Gauge
 import kafka.common.{NotificationHandler, ZkNodeChangeNotificationListener}
 import kafka.metrics.KafkaMetricsGroup
@@ -38,6 +39,7 @@ import kafka.zk.{AclChangeNotificationSequenceZNode, AclChangeNotificationZNode,
 import org.apache.kafka.common.security.auth.KafkaPrincipal
 import org.apache.kafka.common.utils.Time
 import org.slf4j.LoggerFactory
+import kafka.security.auth.TokenValidator
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
