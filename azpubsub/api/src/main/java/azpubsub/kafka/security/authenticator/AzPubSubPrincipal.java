@@ -1,4 +1,4 @@
-package org.apache.kafka.common.security.authenticator;
+package azpubsub.kafka.security.authenticator;
 
 public class AzPubSubPrincipal {
     public String principalType;

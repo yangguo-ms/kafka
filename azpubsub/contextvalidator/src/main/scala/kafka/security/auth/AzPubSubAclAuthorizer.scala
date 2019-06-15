@@ -16,7 +16,7 @@
   */
 
 
-package azpubsub.kafka.security.auth
+package kafka.security.auth
 
 import java.net.InetAddress
 import java.nio.charset.StandardCharsets
@@ -26,7 +26,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import java.util.{Date, Locale, TimeZone}
 
-import azpubsub.kafka.security.auth.SimpleAclAuthorizer.VersionedAcls
+import azpubsub.kafka.security.auth.TokenValidator
 import com.yammer.metrics.core.Gauge
 import kafka.common.{NotificationHandler, ZkNodeChangeNotificationListener}
 import kafka.metrics.KafkaMetricsGroup
@@ -39,7 +39,6 @@ import kafka.zk.{AclChangeNotificationSequenceZNode, AclChangeNotificationZNode,
 import org.apache.kafka.common.security.auth.KafkaPrincipal
 import org.apache.kafka.common.utils.Time
 import org.slf4j.LoggerFactory
-import kafka.security.auth.TokenValidator
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -86,8 +85,13 @@ class AzPubSubAclAuthorizer extends Authorizer with KafkaMetricsGroup {
     val props = new java.util.Properties()
     configs.foreach { case (key, value) => props.put(key, value.toString) }
 
-    tokenAuthenticator = CoreUtils.createObject[TokenValidator](configs.get(AzPubSubAclAuthorizer.TokenValidatorClassPathKey).get.toString)
-    periodToValidateTokenInMinutes = configs.get(AzPubSubAclAuthorizer.ValidateTokenInMinutes).getOrElse("60").toString.toInt
+    tokenAuthenticator = CoreUtils.createObject[TokenValidator](configs.get(KafkaConfig.AzpubsubTokenValidatorClassProp).get.toString)
+
+    if(null != tokenAuthenticator) {
+      tokenAuthenticator.configure(javaConfigs)
+    }
+
+    periodToValidateTokenInMinutes = configs.get(KafkaConfig.AzpubsubValidateTokenInMinutesProp).get.toString.toInt
 
     val kafkaConfig = KafkaConfig.fromProps(props, doLog = false)
     val zkUrl = configs.get(SimpleAclAuthorizer.ZkUrlProp).map(_.toString).getOrElse(kafkaConfig.zkConnect)

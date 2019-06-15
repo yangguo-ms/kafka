@@ -521,7 +521,7 @@ for ( sv in availableScalaVersions ) {
 }
 
 def connectPkgs = ['connect:api', 'connect:runtime', 'connect:transforms', 'connect:json', 'connect:file']
-def pkgs = ['clients', 'examples', 'log4j-appender', 'tools', 'streams', 'streams:test-utils', 'streams:examples', 'azpubsub'] + connectPkgs
+def pkgs = ['clients', 'examples', 'log4j-appender', 'tools', 'streams', 'streams:test-utils', 'streams:examples', 'azpubsub:api', 'azpubsub:contextvalidator'] + connectPkgs
 
 /** Create one task per default Scala version */
 def withDefScalaVersions(taskName) {
@@ -741,6 +741,8 @@ project(':core') {
     from(project(':streams:test-utils').configurations.runtime) { into("libs/") }
     from(project(':streams:examples').jar) { into("libs/") }
     from(project(':streams:examples').configurations.runtime) { into("libs/") }
+    from(project(':azpubsub:api').jar) { into("libs") }
+    from(project(':azpubsub:contextvalidator').configurations.runtime) { into("libs") }
     duplicatesStrategy 'exclude'
   }
 
@@ -769,10 +771,50 @@ project(':core') {
   }
 }
 
-project(':azpubsub') {
+project(':azpubsub:api') {
   apply plugin: 'scala'
   apply plugin: 'java'
-  archivesBaseName = "kafka-azpubsub"
+  archivesBaseName = "kafka-azpubsub-api"
+
+  sourceSets {
+    main {
+      java {
+        srcDir 'src/main/java'
+      }
+      scala {
+        srcDir 'src/main/scala'
+      }
+    }
+    test {
+      java {
+        srcDir 'src/test/java'
+      }
+      scala {
+        srcDir 'src/test/scala'
+      }
+    }
+  }
+
+  dependencies {
+    compile libs.scalaLibrary
+  }
+
+  jar {
+    manifest {
+      attributes('Implementation-Title': 'kafka-azpubsub-api',
+              'Implementation-Version': '1.0')
+    }
+  }
+
+  checkstyle {
+    configProperties = [importControlFile: "$rootDir/checkstyle/import-control-core.xml"]
+  }
+}
+
+project(':azpubsub:contextvalidator') {
+  apply plugin: 'scala'
+  apply plugin: 'java'
+  archivesBaseName = "kafka-azpubsub-contextvalidator"
 
   sourceSets {
     main {
@@ -785,21 +827,22 @@ project(':azpubsub') {
     }
     test {
       java {
-        srcDir 'azpubsub/src/test/java'
+        srcDir 'src/test/java'
       }
       scala {
-        srcDir 'azpubsub/src/test/scala'
+        srcDir 'src/test/scala'
       }
     }
   }
 
   dependencies {
     compile project(':core')
+    compile project(':azpubsub:api')
   }
 
   jar {
     manifest {
-      attributes('Implementation-Title': 'kafka-azpubsub',
+      attributes('Implementation-Title': 'kafka-azpubsub-contextvalidator',
               'Implementation-Version': '1.0')
     }
   }
