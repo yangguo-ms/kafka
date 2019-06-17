@@ -1,8 +1,11 @@
 package azpubsub.kafka.security.authenticator;
 
+/**
+ * AzPubSubPrincipal class.
+ */
 public class AzPubSubPrincipal {
-    public String principalType;
-    public String principalName;
+    private String principalType;
+    private String principalName;
 
     public AzPubSubPrincipal(String type, String name) {
         principalName = name;

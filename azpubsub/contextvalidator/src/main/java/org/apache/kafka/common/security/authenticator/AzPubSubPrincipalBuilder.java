@@ -19,16 +19,11 @@ import java.util.Map;
  *  This provider contructs both regular principal (Kafka Principal) and also SAML token principal.
  */
 public class AzPubSubPrincipalBuilder implements KafkaPrincipalBuilder, Configurable {
-    public static final String ClientCertificateAclString = "client.ceritificate.acl";
-    public static final String SslAuthenticationValidatorClassName = "ssl.authentication.validator.class";
-    public static final String SaslAuthenticationValidatorClassName = "sasl.authentication.validator.class";
-
     private static final Logger LOGGER = LoggerFactory.getLogger(AzPubSubPrincipalBuilder.class);
     private Class<?> sslAuthenticationContextValidatorClass = null;
     private Class<?> saslAuthenticationContextValidatorClass = null;
     private SslAuthenticationContextValidator sslAuthenticationContextValidator = null;
     private SaslAuthenticationContextValidator saslAuthenticationContextValidator = null;
-    private String clientCertificateAclString = null;
 
     public void configure(Map<String, ?> configs) {
         try{
@@ -64,8 +59,6 @@ public class AzPubSubPrincipalBuilder implements KafkaPrincipalBuilder, Configur
                     throw new IllegalArgumentException("Class " + saslAuthenticationContextValidatorClass + " provided by setting " + KafkaConfig.AzPubSubSaslAuthenticationValidatorClassProp() + " is not found. " + KafkaConfig.AzPubSubSaslAuthenticationValidatorClassDoc());
                 }
             }
-
-            clientCertificateAclString = configs.get(KafkaConfig.AzpubsubClientCertificateAclProp()).toString();
         }
         catch(ClassNotFoundException ex) {
            throw new IllegalArgumentException(ex.getMessage());

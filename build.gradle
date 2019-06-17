@@ -742,6 +742,8 @@ project(':core') {
     from(project(':streams:examples').jar) { into("libs/") }
     from(project(':streams:examples').configurations.runtime) { into("libs/") }
     from(project(':azpubsub:api').jar) { into("libs") }
+    from(project(':azpubsub:api').configurations.runtime) { into("libs") }
+    from(project(':azpubsub:contextvalidator').jar) { into("libs") }
     from(project(':azpubsub:contextvalidator').configurations.runtime) { into("libs") }
     duplicatesStrategy 'exclude'
   }
@@ -797,6 +799,8 @@ project(':azpubsub:api') {
 
   dependencies {
     compile libs.scalaLibrary
+
+    testCompile libs.junit
   }
 
   jar {
@@ -838,6 +842,11 @@ project(':azpubsub:contextvalidator') {
   dependencies {
     compile project(':core')
     compile project(':azpubsub:api')
+      
+    testCompile libs.junit
+    testCompile libs.easymock
+    testCompile libs.powermockJunit4
+    testCompile libs.powermockEasymock
   }
 
   jar {
