@@ -4,12 +4,16 @@ import azpubsub.kafka.security.authenticator.AzPubSubPrincipal;
 import azpubsub.kafka.security.authenticator.SaslAuthenticationContextValidator;
 import azpubsub.kafka.security.authenticator.SslAuthenticationContextValidator;
 import kafka.server.KafkaConfig;
+import org.apache.kafka.common.errors.IllegalSaslStateException;
+import org.apache.kafka.common.errors.InvalidConfigurationException;
 import org.apache.kafka.common.security.auth.*;
 import org.apache.kafka.common.Configurable;
 import org.apache.kafka.common.utils.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.naming.AuthenticationNotSupportedException;
+import javax.security.sasl.AuthenticationException;
 import javax.security.sasl.SaslServer;
 import java.util.Map;
 
@@ -61,7 +65,7 @@ public class AzPubSubPrincipalBuilder implements KafkaPrincipalBuilder, Configur
             }
         }
         catch(ClassNotFoundException ex) {
-           throw new IllegalArgumentException(ex.getMessage());
+           throw new IllegalArgumentException(ex.getClass() + ". Error Message: " + ex.getMessage());
         }
     }
 
@@ -79,7 +83,11 @@ public class AzPubSubPrincipalBuilder implements KafkaPrincipalBuilder, Configur
 
                 AzPubSubPrincipal azPubSubPrincipal = sslAuthenticationContextValidator.authenticate(sslAuthenticationContext.session());
 
-                return  new KafkaPrincipal(azPubSubPrincipal.getPrincipalType(), azPubSubPrincipal.getPrincipalType());
+                if(null == azPubSubPrincipal) {
+                    throw new IllegalStateException("Ssl Authentication Context Validator failed to validate the current SSL session. the AzPubSub returned is null.");
+                }
+
+                return  new KafkaPrincipal(azPubSubPrincipal.getPrincipalType(), azPubSubPrincipal.getPrincipalName());
             }
 
             if( null == sslAuthenticationContextValidatorClass) {
@@ -100,6 +108,10 @@ public class AzPubSubPrincipalBuilder implements KafkaPrincipalBuilder, Configur
             if (null != saslAuthenticationContextValidator ) {
 
                 AzPubSubPrincipal azPubSubPrincipal = saslAuthenticationContextValidator.authenticate(saslServer);
+
+                if(null == azPubSubPrincipal) {
+                    throw new IllegalSaslStateException("Sasl Authentication Context Validator failed to authenticate the current context, the AzPubSub principal return is null.");
+                }
 
                 return new KafkaPrincipal(azPubSubPrincipal.getPrincipalType(), azPubSubPrincipal.getPrincipalName());
             }
