@@ -847,6 +847,7 @@ project(':azpubsub:contextvalidator') {
     testCompile libs.easymock
     testCompile libs.powermockJunit4
     testCompile libs.powermockEasymock
+    testCompile libs.scalatest
   }
 
   jar {
