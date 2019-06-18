@@ -31,7 +31,7 @@ import com.yammer.metrics.core.Gauge
 import kafka.common.{NotificationHandler, ZkNodeChangeNotificationListener}
 import kafka.metrics.KafkaMetricsGroup
 import kafka.network.RequestChannel.Session
-import kafka.security.auth.SimpleAclAuthorizer.VersionedAcls
+import kafka.security.auth.AzPubSubAclAuthorizer.VersionedAcls
 import kafka.server.KafkaConfig
 import kafka.utils.CoreUtils.{inReadLock, inWriteLock}
 import kafka.utils.{CoreUtils, Json}
@@ -73,7 +73,7 @@ class AzPubSubAclAuthorizer extends Authorizer with KafkaMetricsGroup {
   private var periodToValidateTokenInMinutes : Int = 60
   private var zkClient: KafkaZkClient = null
   private var aclChangeListener: ZkNodeChangeNotificationListener = null
-  private val aclCache = new scala.collection.mutable.HashMap[Resource, VersionedAcls]
+  private val aclCache = new scala.collection.mutable.HashMap[Resource, AzPubSubAclAuthorizer.VersionedAcls]
   private val lock = new ReentrantReadWriteLock()
   private val retryBackoffMs = 100
   private val retryBackoffJitterMs = 50
@@ -94,14 +94,14 @@ class AzPubSubAclAuthorizer extends Authorizer with KafkaMetricsGroup {
     periodToValidateTokenInMinutes = configs.get(KafkaConfig.AzpubsubValidateTokenInMinutesProp).get.toString.toInt
 
     val kafkaConfig = KafkaConfig.fromProps(props, doLog = false)
-    val zkUrl = configs.get(SimpleAclAuthorizer.ZkUrlProp).map(_.toString).getOrElse(kafkaConfig.zkConnect)
-    val zkConnectionTimeoutMs = configs.get(SimpleAclAuthorizer.ZkConnectionTimeOutProp).map(_.toString.toInt).getOrElse(kafkaConfig.zkConnectionTimeoutMs)
-    val zkSessionTimeOutMs = configs.get(SimpleAclAuthorizer.ZkSessionTimeOutProp).map(_.toString.toInt).getOrElse(kafkaConfig.zkSessionTimeoutMs)
-    val zkMaxInFlightRequests = configs.get(SimpleAclAuthorizer.ZkMaxInFlightRequests).map(_.toString.toInt).getOrElse(kafkaConfig.zkMaxInFlightRequests)
+    val zkUrl = configs.get(AzPubSubAclAuthorizer.ZkUrlProp).map(_.toString).getOrElse(kafkaConfig.zkConnect)
+    val zkConnectionTimeoutMs = configs.get(AzPubSubAclAuthorizer.ZkConnectionTimeOutProp).map(_.toString.toInt).getOrElse(kafkaConfig.zkConnectionTimeoutMs)
+    val zkSessionTimeOutMs = configs.get(AzPubSubAclAuthorizer.ZkSessionTimeOutProp).map(_.toString.toInt).getOrElse(kafkaConfig.zkSessionTimeoutMs)
+    val zkMaxInFlightRequests = configs.get(AzPubSubAclAuthorizer.ZkMaxInFlightRequests).map(_.toString.toInt).getOrElse(kafkaConfig.zkMaxInFlightRequests)
 
     val time = Time.SYSTEM
     zkClient = KafkaZkClient(zkUrl, kafkaConfig.zkEnableSecureAcls, zkSessionTimeOutMs, zkConnectionTimeoutMs,
-      zkMaxInFlightRequests, time, "kafka.security", "AzPubSubSimpleAclAuthorizer")
+      zkMaxInFlightRequests, time, "kafka.security", "AzPubSubAzPubSubAclAuthorizer")
     zkClient.createAclPaths()
 
     startZkChangeListeners()
@@ -363,7 +363,8 @@ class AzPubSubAclAuthorizer extends Authorizer with KafkaMetricsGroup {
   }
 
   private def getAclsFromZk(resource: Resource): VersionedAcls = {
-    zkClient.getVersionedAclsForResource(resource)
+    val acls = zkClient.getVersionedAclsForResource(resource)
+    VersionedAcls(acls.acls, acls.zkVersion)
   }
 
   private def loadCache()  {

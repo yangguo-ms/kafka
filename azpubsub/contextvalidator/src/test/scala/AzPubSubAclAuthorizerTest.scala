@@ -1,14 +1,18 @@
+import java.util
 import java.util.Date
 
 import kafka.metrics.KafkaMetricsGroup
 import kafka.network.RequestChannel.Session
 import kafka.security.auth.{Acl, All, Allow, AzPubSubAclAuthorizer, Resource, Topic}
+import kafka.server.KafkaConfig
+import kafka.zk.KafkaZkClient
+import kafka.zookeeper.ZooKeeperClient
 
 import scala.collection.mutable
 import org.apache.kafka.common.security.auth.KafkaPrincipal
 import org.easymock.EasyMock
 import org.easymock.EasyMock._
-import org.junit.Test
+import org.junit.{Test}
 import org.junit.runner.RunWith
 import org.powermock.api.support.membermodification.MemberMatcher
 import org.powermock.core.classloader.annotations.{PowerMockIgnore, PrepareForTest}
@@ -17,13 +21,46 @@ import org.powermock.reflect.Whitebox
 import org.powermock.api.support.membermodification.MemberModifier.suppress
 
 
+object AzPubSubAclAuthorizerTest{
+  val mockPositiveTokenValidator = classOf[mockPositiveTokenValidator].getName
+  val mockNonExistingTokenValidator = "notExistingClass"
+}
+
 @RunWith(classOf[PowerMockRunner])
-@PrepareForTest(Array(classOf[org.slf4j.LoggerFactory], classOf[AzPubSubAclAuthorizer], classOf[KafkaMetricsGroup]))
+@PrepareForTest(Array(classOf[org.slf4j.LoggerFactory], classOf[AzPubSubAclAuthorizer], classOf[KafkaMetricsGroup], classOf[KafkaZkClient], classOf[ZooKeeperClient]))
 @PowerMockIgnore(Array("javax.management.*"))
 class AzPubSubAclAuthorizerTest {
 
-  @Test
-  def testAzPubSubAclAuthorizerAuthorizeTokenPositive(): Unit = {
+      @Test(expected = classOf[ClassNotFoundException])
+      def testConfigureNegative(): Unit = {
+            val authorizer: AzPubSubAclAuthorizer = EasyMock.partialMockBuilder(classOf[AzPubSubAclAuthorizer])
+              .addMockedMethod("startZkChangeListeners")
+              .createMock()
+
+            suppress(MemberMatcher.methodsDeclaredIn(classOf[KafkaZkClient]))
+            suppress(MemberMatcher.constructorsDeclaredIn(classOf[ZooKeeperClient]))
+            suppress(MemberMatcher.method(classOf[AzPubSubAclAuthorizer], "newGauge"))
+            suppress(MemberMatcher.method(classOf[AzPubSubAclAuthorizer], "newMeter"))
+            suppress(MemberMatcher.method(classOf[ZooKeeperClient], "newGauge"))
+            suppress(MemberMatcher.method(classOf[ZooKeeperClient], "newMeter"))
+
+            EasyMock.replay(authorizer)
+
+            val javaConfigs = new util.HashMap[String, String]()
+            javaConfigs.put(KafkaConfig.AzpubsubTokenValidatorClassProp, AzPubSubAclAuthorizerTest.mockNonExistingTokenValidator)
+            javaConfigs.put(KafkaConfig.AzpubsubValidateTokenInMinutesProp, "60")
+            javaConfigs.put(AzPubSubAclAuthorizer.ZkUrlProp, "localhost:2181")
+            javaConfigs.put(AzPubSubAclAuthorizer.ZkSessionTimeOutProp, "50")
+            javaConfigs.put(AzPubSubAclAuthorizer.ZkMaxInFlightRequests, "40")
+            javaConfigs.put(KafkaConfig.ZkConnectProp, "loalhost:2181")
+
+            authorizer.configure(javaConfigs)
+      }
+
+
+
+      @Test
+      def testAzPubSubAclAuthorizerAuthorizeTokenPositive(): Unit = {
         val tokenJsonString = "{" +
           "\"Roles\":" +
           "[" +
