@@ -454,6 +454,7 @@ object KafkaConfig {
   val AzpubsubClientCertificateAclProp = "azpubsub.client.ceritificate.acl"
   val AzpubsubSslAuthenticationValidatorClassProp = "azpubsub.ssl.authentication.validator.class"
   val AzPubSubSaslAuthenticationValidatorClassProp = "azpubsub.sasl.authentication.validator.class"
+  val AzPubSubTopicWhiteListProp = "azpubsub.topic.whitelist"
 
   /* Documentation */
   /** ********* Zookeeper Configuration ***********/
@@ -755,6 +756,8 @@ object KafkaConfig {
   val AzpubsubClientCertificateAclDoc= "Client Acls accepted by AzPubSub Kakfa Broker."
   val AzpubsubSslAuthenticationValidatorClassDoc = "The class used to validate Ssl Authentication Context, including client certificate."
   val AzPubSubSaslAuthenticationValidatorClassDoc = "The class used to validate Sasl Authentication Context."
+  val AzPubSubTopicWhiteListDoc = "Whitelisted topics, separated by comma. All whitelisted topics are authorized to any user/role."
+
 
 
   private val configDef = {
@@ -982,6 +985,7 @@ object KafkaConfig {
       .define(AzpubsubClientCertificateAclProp, STRING, null, HIGH, AzpubsubClientCertificateAclDoc)
       .define(AzpubsubSslAuthenticationValidatorClassProp, STRING, null, HIGH, AzpubsubSslAuthenticationValidatorClassDoc)
       .define(AzPubSubSaslAuthenticationValidatorClassProp, STRING, null, HIGH, AzPubSubSaslAuthenticationValidatorClassDoc)
+      .define(AzPubSubTopicWhiteListProp, STRING, "", HIGH, AzPubSubTopicWhiteListDoc)
   }
 
   def configNames() = configDef.names().asScala.toList.sorted

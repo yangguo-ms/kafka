@@ -77,6 +77,7 @@ class AzPubSubAclAuthorizer extends Authorizer with KafkaMetricsGroup {
   private val lock = new ReentrantReadWriteLock()
   private val retryBackoffMs = 100
   private val retryBackoffJitterMs = 50
+  private var topicsWhiteListed: Set[String] = null
 
   protected[auth] var maxUpdateRetries = 10
 
@@ -92,6 +93,7 @@ class AzPubSubAclAuthorizer extends Authorizer with KafkaMetricsGroup {
     }
 
     periodToValidateTokenInMinutes = configs.get(KafkaConfig.AzpubsubValidateTokenInMinutesProp).get.toString.toInt
+    topicsWhiteListed = configs.get(KafkaConfig.AzPubSubTopicWhiteListProp).get.toString.split(",").distinct.toSet
 
     val kafkaConfig = KafkaConfig.fromProps(props, doLog = false)
     val zkUrl = configs.get(AzPubSubAclAuthorizer.ZkUrlProp).map(_.toString).getOrElse(kafkaConfig.zkConnect)
@@ -134,6 +136,13 @@ class AzPubSubAclAuthorizer extends Authorizer with KafkaMetricsGroup {
     resource.resourceType match {
 
       case Topic => {
+
+        if(topicsWhiteListed.contains(resource.name)) {
+
+          LOGGER.debug(s"Topic ${resource.name} is white listed, authorized.")
+
+          return true
+        }
 
         val acls = getAcls(resource) ++ getAcls(new Resource(resource.resourceType, Resource.WildCardResource))
 
