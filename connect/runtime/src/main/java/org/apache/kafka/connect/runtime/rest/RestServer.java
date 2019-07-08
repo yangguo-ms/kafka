@@ -19,8 +19,13 @@ package org.apache.kafka.connect.runtime.rest;
 import com.fasterxml.jackson.jaxrs.json.JacksonJsonProvider;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.connect.errors.ConnectException;
+import org.apache.kafka.connect.health.ConnectClusterDetails;
+import org.apache.kafka.connect.rest.ConnectRestExtension;
+import org.apache.kafka.connect.rest.ConnectRestExtensionContext;
 import org.apache.kafka.connect.runtime.Herder;
 import org.apache.kafka.connect.runtime.WorkerConfig;
+import org.apache.kafka.connect.runtime.health.ConnectClusterDetailsImpl;
+import org.apache.kafka.connect.runtime.health.ConnectClusterStateImpl;
 import org.apache.kafka.connect.runtime.rest.errors.ConnectExceptionMapper;
 import org.apache.kafka.connect.runtime.rest.resources.ConnectorPluginsResource;
 import org.apache.kafka.connect.runtime.rest.resources.ConnectorsResource;
@@ -30,9 +35,8 @@ import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
-import org.eclipse.jetty.server.Slf4jRequestLog;
+import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.server.handler.DefaultHandler;
-import org.eclipse.jetty.server.handler.HandlerCollection;
 import org.eclipse.jetty.server.handler.RequestLogHandler;
 import org.eclipse.jetty.server.handler.StatisticsHandler;
 import org.eclipse.jetty.servlet.FilterHolder;
@@ -41,12 +45,14 @@ import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.servlets.CrossOriginFilter;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.glassfish.jersey.server.ResourceConfig;
+import org.glassfish.jersey.server.ServerProperties;
 import org.glassfish.jersey.servlet.ServletContainer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.DispatcherType;
 import javax.ws.rs.core.UriBuilder;
+import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -62,13 +68,17 @@ import java.util.regex.Pattern;
 public class RestServer {
     private static final Logger log = LoggerFactory.getLogger(RestServer.class);
 
+    private static final Pattern LISTENER_PATTERN = Pattern.compile("^(.*)://\\[?([0-9a-zA-Z\\-%._:]*)\\]?:(-?[0-9]+)");
     private static final long GRACEFUL_SHUTDOWN_TIMEOUT_MS = 60 * 1000;
 
     private static final String PROTOCOL_HTTP = "http";
     private static final String PROTOCOL_HTTPS = "https";
 
     private final WorkerConfig config;
+    private ContextHandlerCollection handlers;
     private Server jettyServer;
+
+    private List<ConnectRestExtension> connectRestExtensions = Collections.emptyList();
 
     /**
      * Create a REST server for this herder using the specified configs.
@@ -79,10 +89,12 @@ public class RestServer {
         List<String> listeners = parseListeners();
 
         jettyServer = new Server();
+        handlers = new ContextHandlerCollection();
 
         createConnectors(listeners);
     }
 
+    @SuppressWarnings("deprecation")
     List<String> parseListeners() {
         List<String> listeners = config.getList(WorkerConfig.LISTENERS_CONFIG);
         if (listeners == null || listeners.size() == 0) {
@@ -118,8 +130,7 @@ public class RestServer {
      * Creates Jetty connector according to configuration
      */
     public Connector createConnector(String listener) {
-        Pattern listenerPattern = Pattern.compile("^(.*)://\\[?([0-9a-zA-Z\\-%._:]*)\\]?:(-?[0-9]+)");
-        Matcher listenerMatcher = listenerPattern.matcher(listener);
+        Matcher listenerMatcher = LISTENER_PATTERN.matcher(listener);
 
         if (!listenerMatcher.matches())
             throw new ConfigException("Listener doesn't have the right format (protocol://hostname:port).");
@@ -151,8 +162,28 @@ public class RestServer {
         return connector;
     }
 
-    public void start(Herder herder) {
-        log.info("Starting REST server");
+    public void initializeServer() {
+        log.info("Initializing REST server");
+
+        /* Needed for graceful shutdown as per `setStopTimeout` documentation */
+        StatisticsHandler statsHandler = new StatisticsHandler();
+        statsHandler.setHandler(handlers);
+        jettyServer.setHandler(statsHandler);
+        jettyServer.setStopTimeout(GRACEFUL_SHUTDOWN_TIMEOUT_MS);
+        jettyServer.setStopAtShutdown(true);
+
+        try {
+            jettyServer.start();
+        } catch (Exception e) {
+            throw new ConnectException("Unable to initialize REST server", e);
+        }
+
+        log.info("REST server listening at " + jettyServer.getURI() + ", advertising URL " + advertisedUrl());
+    }
+
+    @SuppressWarnings("deprecation")
+    public void initializeResources(Herder herder) {
+        log.info("Initializing REST resources");
 
         ResourceConfig resourceConfig = new ResourceConfig();
         resourceConfig.register(new JacksonJsonProvider());
@@ -162,6 +193,9 @@ public class RestServer {
         resourceConfig.register(new ConnectorPluginsResource(herder));
 
         resourceConfig.register(ConnectExceptionMapper.class);
+        resourceConfig.property(ServerProperties.WADL_FEATURE_DISABLE, true);
+
+        registerRestExtensions(herder, resourceConfig);
 
         ServletContainer servletContainer = new ServletContainer(resourceConfig);
         ServletHolder servletHolder = new ServletHolder(servletContainer);
@@ -183,40 +217,42 @@ public class RestServer {
         }
 
         RequestLogHandler requestLogHandler = new RequestLogHandler();
-        Slf4jRequestLog requestLog = new Slf4jRequestLog();
+        // Use fully qualified name to avoid deprecation warning
+        org.eclipse.jetty.server.Slf4jRequestLog requestLog = new org.eclipse.jetty.server.Slf4jRequestLog();
         requestLog.setLoggerName(RestServer.class.getCanonicalName());
         requestLog.setLogLatency(true);
         requestLogHandler.setRequestLog(requestLog);
 
-        HandlerCollection handlers = new HandlerCollection();
         handlers.setHandlers(new Handler[]{context, new DefaultHandler(), requestLogHandler});
-
-        /* Needed for graceful shutdown as per `setStopTimeout` documentation */
-        StatisticsHandler statsHandler = new StatisticsHandler();
-        statsHandler.setHandler(handlers);
-        jettyServer.setHandler(statsHandler);
-        jettyServer.setStopTimeout(GRACEFUL_SHUTDOWN_TIMEOUT_MS);
-        jettyServer.setStopAtShutdown(true);
-
         try {
-            jettyServer.start();
+            context.start();
         } catch (Exception e) {
-            throw new ConnectException("Unable to start REST server", e);
+            throw new ConnectException("Unable to initialize REST resources", e);
         }
 
-        log.info("REST server listening at " + jettyServer.getURI() + ", advertising URL " + advertisedUrl());
+        log.info("REST resources initialized; server is started and ready to handle requests");
+    }
+
+    public URI serverUrl() {
+        return jettyServer.getURI();
     }
 
     public void stop() {
         log.info("Stopping REST server");
 
         try {
+            for (ConnectRestExtension connectRestExtension : connectRestExtensions) {
+                try {
+                    connectRestExtension.close();
+                } catch (IOException e) {
+                    log.warn("Error while invoking close on " + connectRestExtension.getClass(), e);
+                }
+            }
             jettyServer.stop();
             jettyServer.join();
         } catch (Exception e) {
-            throw new ConnectException("Unable to stop REST server", e);
-        } finally {
             jettyServer.destroy();
+            throw new ConnectException("Unable to stop REST server", e);
         }
 
         log.info("REST server stopped");
@@ -224,7 +260,8 @@ public class RestServer {
 
     /**
      * Get the URL to advertise to other workers and clients. This uses the default connector from the embedded Jetty
-     * server, unless overrides for advertised hostname and/or port are provided via configs.
+     * server, unless overrides for advertised hostname and/or port are provided via configs. {@link #initializeServer()}
+     * must be invoked successfully before calling this method.
      */
     public URI advertisedUrl() {
         UriBuilder builder = UriBuilder.fromUri(jettyServer.getURI());
@@ -242,7 +279,7 @@ public class RestServer {
         Integer advertisedPort = config.getInt(WorkerConfig.REST_ADVERTISED_PORT_CONFIG);
         if (advertisedPort != null)
             builder.port(advertisedPort);
-        else if (serverConnector != null)
+        else if (serverConnector != null && serverConnector.getPort() > 0)
             builder.port(serverConnector.getPort());
 
         log.info("Advertised URI: {}", builder.build());
@@ -278,6 +315,34 @@ public class RestServer {
         }
 
         return null;
+    }
+
+    void registerRestExtensions(Herder herder, ResourceConfig resourceConfig) {
+        connectRestExtensions = herder.plugins().newPlugins(
+            config.getList(WorkerConfig.REST_EXTENSION_CLASSES_CONFIG),
+            config, ConnectRestExtension.class);
+
+        long herderRequestTimeoutMs = ConnectorsResource.REQUEST_TIMEOUT_MS;
+
+        Integer rebalanceTimeoutMs = config.getRebalanceTimeout();
+
+        if (rebalanceTimeoutMs != null) {
+            herderRequestTimeoutMs = Math.min(herderRequestTimeoutMs, rebalanceTimeoutMs.longValue());
+        }
+
+        ConnectClusterDetails connectClusterDetails = new ConnectClusterDetailsImpl(
+            herder.kafkaClusterId()
+        );
+
+        ConnectRestExtensionContext connectRestExtensionContext =
+            new ConnectRestExtensionContextImpl(
+                new ConnectRestConfigurable(resourceConfig),
+                new ConnectClusterStateImpl(herderRequestTimeoutMs, connectClusterDetails, herder)
+            );
+        for (ConnectRestExtension connectRestExtension : connectRestExtensions) {
+            connectRestExtension.register(connectRestExtensionContext);
+        }
+
     }
 
     public static String urlJoin(String base, String path) {

@@ -23,6 +23,7 @@ import kafka.utils.TestUtils
 import org.junit.{After, Before, Test}
 import org.junit.Assert._
 import java.io.File
+import org.scalatest.Assertions.intercept
 
 import org.apache.zookeeper.KeeperException.NodeExistsException
 
@@ -188,13 +189,5 @@ class ServerGenerateBrokerIdTest extends ZooKeeperTestHarness {
       }
     }
     true
-  }
-
-  @Test
-  def testGetSequenceIdMethod() {
-    val path = "/test/seqid"
-    (1 to 10).foreach { seqid =>
-      assertEquals(seqid, zkUtils.getSequenceId(path))
-    }
   }
 }

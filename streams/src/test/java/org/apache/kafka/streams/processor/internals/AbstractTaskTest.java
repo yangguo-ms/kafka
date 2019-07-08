@@ -32,7 +32,7 @@ import org.apache.kafka.streams.errors.LockException;
 import org.apache.kafka.streams.errors.ProcessorStateException;
 import org.apache.kafka.streams.processor.StateStore;
 import org.apache.kafka.streams.processor.TaskId;
-import org.apache.kafka.test.MockProcessorContext;
+import org.apache.kafka.test.InternalMockProcessorContext;
 import org.apache.kafka.test.MockRestoreCallback;
 import org.apache.kafka.test.MockStateRestoreListener;
 import org.apache.kafka.test.TestUtils;
@@ -42,6 +42,7 @@ import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -49,6 +50,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
+import static org.apache.kafka.streams.processor.internals.ProcessorTopologyFactories.withLocalStores;
 import static org.easymock.EasyMock.expect;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -62,8 +64,8 @@ public class AbstractTaskTest {
     private final TopicPartition storeTopicPartition2 = new TopicPartition("t2", 0);
     private final TopicPartition storeTopicPartition3 = new TopicPartition("t3", 0);
     private final TopicPartition storeTopicPartition4 = new TopicPartition("t4", 0);
-    private final Collection<TopicPartition> storeTopicPartitions
-        = Utils.mkSet(storeTopicPartition1, storeTopicPartition2, storeTopicPartition3, storeTopicPartition4);
+    private final Collection<TopicPartition> storeTopicPartitions =
+        Utils.mkSet(storeTopicPartition1, storeTopicPartition2, storeTopicPartition3, storeTopicPartition4);
 
     @Before
     public void before() {
@@ -95,6 +97,8 @@ public class AbstractTaskTest {
     public void shouldThrowLockExceptionIfFailedToLockStateDirectoryWhenTopologyHasStores() throws IOException {
         final Consumer consumer = EasyMock.createNiceMock(Consumer.class);
         final StateStore store = EasyMock.createNiceMock(StateStore.class);
+        expect(store.name()).andReturn("dummy-store-name").anyTimes();
+        EasyMock.replay(store);
         expect(stateDirectory.lock(id)).andReturn(false);
         EasyMock.replay(stateDirectory);
 
@@ -151,7 +155,7 @@ public class AbstractTaskTest {
         expect(store4.name()).andReturn(storeName4).anyTimes();
         EasyMock.replay(store4);
 
-        final StateDirectory stateDirectory = new StateDirectory(streamsConfig, new MockTime());
+        final StateDirectory stateDirectory = new StateDirectory(streamsConfig, new MockTime(), true);
         final AbstractTask task = createTask(
             consumer,
             new HashMap<StateStore, String>() {
@@ -194,7 +198,7 @@ public class AbstractTaskTest {
         testFile4.createNewFile();
         assertTrue(testFile4.exists());
 
-        task.processorContext = new MockProcessorContext(stateDirectory.directoryForTask(task.id), streamsConfig);
+        task.processorContext = new InternalMockProcessorContext(stateDirectory.directoryForTask(task.id), streamsConfig);
 
         task.stateMgr.register(store1, new MockRestoreCallback());
         task.stateMgr.register(store2, new MockRestoreCallback());
@@ -231,9 +235,13 @@ public class AbstractTaskTest {
 
         return new AbstractTask(id,
                                 storeTopicPartitions,
-                                ProcessorTopology.withLocalStores(new ArrayList<>(stateStoresToChangelogTopics.keySet()), storeNamesToChangelogTopics),
+                                withLocalStores(new ArrayList<>(stateStoresToChangelogTopics.keySet()),
+                                                storeNamesToChangelogTopics),
                                 consumer,
-                                new StoreChangelogReader(consumer, new MockStateRestoreListener(), new LogContext("stream-task-test ")),
+                                new StoreChangelogReader(consumer,
+                                                         Duration.ZERO,
+                                                         new MockStateRestoreListener(),
+                                                         new LogContext("stream-task-test ")),
                                 false,
                                 stateDirectory,
                                 config) {

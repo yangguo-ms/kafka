@@ -26,7 +26,6 @@ import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
-import org.eclipse.jetty.server.Slf4jRequestLog;
 import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerCollection;
 import org.eclipse.jetty.server.handler.RequestLogHandler;
@@ -85,6 +84,7 @@ public class JsonRestServer {
      *
      * @param resources         The path handling resources to register.
      */
+    @SuppressWarnings("deprecation")
     public void start(Object... resources) {
         log.info("Starting REST server");
         ResourceConfig resourceConfig = new ResourceConfig();
@@ -101,7 +101,8 @@ public class JsonRestServer {
         context.addServlet(servletHolder, "/*");
 
         RequestLogHandler requestLogHandler = new RequestLogHandler();
-        Slf4jRequestLog requestLog = new Slf4jRequestLog();
+        // Use fully qualified name to avoid deprecation warning in import statement
+        org.eclipse.jetty.server.Slf4jRequestLog requestLog = new org.eclipse.jetty.server.Slf4jRequestLog();
         requestLog.setLoggerName(JsonRestServer.class.getCanonicalName());
         requestLog.setLogLatency(true);
         requestLogHandler.setRequestLog(requestLog);
@@ -132,22 +133,19 @@ public class JsonRestServer {
      */
     public void beginShutdown() {
         if (!shutdownExecutor.isShutdown()) {
-            shutdownExecutor.submit(new Callable<Void>() {
-                @Override
-                public Void call() throws Exception {
-                    try {
-                        log.info("Stopping REST server");
-                        jettyServer.stop();
-                        jettyServer.join();
-                        log.info("REST server stopped");
-                    } catch (Exception e) {
-                        log.error("Unable to stop REST server", e);
-                    } finally {
-                        jettyServer.destroy();
-                    }
-                    shutdownExecutor.shutdown();
-                    return null;
+            shutdownExecutor.submit((Callable<Void>) () -> {
+                try {
+                    log.info("Stopping REST server");
+                    jettyServer.stop();
+                    jettyServer.join();
+                    log.info("REST server stopped");
+                } catch (Exception e) {
+                    log.error("Unable to stop REST server", e);
+                } finally {
+                    jettyServer.destroy();
                 }
+                shutdownExecutor.shutdown();
+                return null;
             });
         }
     }
@@ -162,6 +160,8 @@ public class JsonRestServer {
     }
 
     /**
+     * Make an HTTP request.
+     *
      * @param url               HTTP connection will be established with this url.
      * @param method            HTTP method ("GET", "POST", "PUT", etc.)
      * @param requestBodyData   Object to serialize as JSON and send in the request body.
@@ -170,12 +170,28 @@ public class JsonRestServer {
      * @return The deserialized response to the HTTP request, or null if no data is expected.
      */
     public static <T> HttpResponse<T> httpRequest(String url, String method, Object requestBodyData,
-                                    TypeReference<T> responseFormat) throws IOException {
+                                                  TypeReference<T> responseFormat) throws IOException {
+        return httpRequest(log, url, method, requestBodyData, responseFormat);
+    }
+
+    /**
+     * Make an HTTP request.
+     *
+     * @param logger            The logger to use.
+     * @param url               HTTP connection will be established with this url.
+     * @param method            HTTP method ("GET", "POST", "PUT", etc.)
+     * @param requestBodyData   Object to serialize as JSON and send in the request body.
+     * @param responseFormat    Expected format of the response to the HTTP request.
+     * @param <T>               The type of the deserialized response to the HTTP request.
+     * @return The deserialized response to the HTTP request, or null if no data is expected.
+     */
+    public static <T> HttpResponse<T> httpRequest(Logger logger, String url, String method,
+            Object requestBodyData, TypeReference<T> responseFormat) throws IOException {
         HttpURLConnection connection = null;
         try {
             String serializedBody = requestBodyData == null ? null :
                 JsonUtil.JSON_SERDE.writeValueAsString(requestBodyData);
-            log.debug("Sending {} with input {} to {}", method, serializedBody, url);
+            logger.debug("Sending {} with input {} to {}", method, serializedBody, url);
             connection = (HttpURLConnection) new URL(url).openConnection();
             connection.setRequestMethod(method);
             connection.setRequestProperty("User-Agent", "kafka");
@@ -225,7 +241,34 @@ public class JsonRestServer {
         }
     }
 
-    public static <T> HttpResponse<T> httpRequest(String url, String method,
+    /**
+     * Make an HTTP request with retries.
+     *
+     * @param url               HTTP connection will be established with this url.
+     * @param method            HTTP method ("GET", "POST", "PUT", etc.)
+     * @param requestBodyData   Object to serialize as JSON and send in the request body.
+     * @param responseFormat    Expected format of the response to the HTTP request.
+     * @param <T>               The type of the deserialized response to the HTTP request.
+     * @return The deserialized response to the HTTP request, or null if no data is expected.
+     */
+    public static <T> HttpResponse<T> httpRequest(String url, String method, Object requestBodyData,
+                                                  TypeReference<T> responseFormat, int maxTries)
+            throws IOException, InterruptedException {
+        return httpRequest(log, url, method, requestBodyData, responseFormat, maxTries);
+    }
+
+    /**
+     * Make an HTTP request with retries.
+     *
+     * @param logger            The logger to use.
+     * @param url               HTTP connection will be established with this url.
+     * @param method            HTTP method ("GET", "POST", "PUT", etc.)
+     * @param requestBodyData   Object to serialize as JSON and send in the request body.
+     * @param responseFormat    Expected format of the response to the HTTP request.
+     * @param <T>               The type of the deserialized response to the HTTP request.
+     * @return The deserialized response to the HTTP request, or null if no data is expected.
+     */
+    public static <T> HttpResponse<T> httpRequest(Logger logger, String url, String method,
             Object requestBodyData, TypeReference<T> responseFormat, int maxTries)
             throws IOException, InterruptedException {
         IOException exc = null;
@@ -234,9 +277,9 @@ public class JsonRestServer {
                 Thread.sleep(tries > 1 ? 10 : 2);
             }
             try {
-                return httpRequest(url, method, requestBodyData, responseFormat);
+                return httpRequest(logger, url, method, requestBodyData, responseFormat);
             } catch (IOException e) {
-                log.info("{} {}: error: {}", method, url, e.getMessage());
+                logger.info("{} {}: error: {}", method, url, e.getMessage());
                 exc = e;
             }
         }
