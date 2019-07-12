@@ -15,8 +15,8 @@ public interface SslAuthenticationContextValidator {
 
     /**
      * authenticate the SSL session, including client certificates.
-     * @param sslSession
-     * @return
+     * @param sslSession SSL Session context
+     * @return AzPubSubPrincipal
      */
     AzPubSubPrincipal authenticate(SSLSession sslSession);
 }

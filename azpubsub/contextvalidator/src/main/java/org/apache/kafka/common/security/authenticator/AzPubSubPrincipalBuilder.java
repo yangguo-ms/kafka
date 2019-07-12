@@ -6,7 +6,12 @@ import azpubsub.kafka.security.authenticator.SslAuthenticationContextValidator;
 import kafka.server.KafkaConfig;
 import org.apache.kafka.common.errors.IllegalSaslStateException;
 import org.apache.kafka.common.errors.InvalidConfigurationException;
-import org.apache.kafka.common.security.auth.*;
+import org.apache.kafka.common.security.auth.KafkaPrincipalBuilder;
+import org.apache.kafka.common.security.auth.AuthenticationContext;
+import org.apache.kafka.common.security.auth.KafkaPrincipal;
+import org.apache.kafka.common.security.auth.PlaintextAuthenticationContext;
+import org.apache.kafka.common.security.auth.SaslAuthenticationContext;
+import org.apache.kafka.common.security.auth.SslAuthenticationContext;
 import org.apache.kafka.common.Configurable;
 import org.apache.kafka.common.utils.Utils;
 import org.slf4j.Logger;
@@ -20,7 +25,7 @@ import java.util.Map;
 
 /**
  *  A new Principal Builder used to replace the default provider.
- *  This provider contructs both regular principal (Kafka Principal) and also SAML token principal.
+ *  This provider constructs both regular principal (Kafka Principal) and also SAML token principal.
  */
 public class AzPubSubPrincipalBuilder implements KafkaPrincipalBuilder, Configurable {
     private static final Logger LOGGER = LoggerFactory.getLogger(AzPubSubPrincipalBuilder.class);
@@ -29,6 +34,10 @@ public class AzPubSubPrincipalBuilder implements KafkaPrincipalBuilder, Configur
     private SslAuthenticationContextValidator sslAuthenticationContextValidator = null;
     private SaslAuthenticationContextValidator saslAuthenticationContextValidator = null;
 
+    /**
+     *  Implementation of Configurable interface
+      * @param configs Global Kafka configuration
+     */
     public void configure(Map<String, ?> configs) {
         try{
             sslAuthenticationContextValidatorClass = Class.forName(configs.get(KafkaConfig.AzpubsubSslAuthenticationValidatorClassProp()).toString());

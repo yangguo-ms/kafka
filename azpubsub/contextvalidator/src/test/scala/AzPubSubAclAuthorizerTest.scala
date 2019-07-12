@@ -45,6 +45,8 @@ class AzPubSubAclAuthorizerTest {
             suppress(MemberMatcher.method(classOf[ZooKeeperClient], "newGauge"))
             suppress(MemberMatcher.method(classOf[ZooKeeperClient], "newMeter"))
 
+            javassist.CannotCompileException
+
             EasyMock.replay(authorizer)
 
             val javaConfigs = new util.HashMap[String, String]()

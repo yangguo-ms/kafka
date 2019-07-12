@@ -843,11 +843,11 @@ project(':azpubsub:contextvalidator') {
     compile project(':core')
     compile project(':azpubsub:api')
       
-    testCompile libs.junit
-    testCompile libs.easymock
-    testCompile libs.powermockJunit4
-    testCompile libs.powermockEasymock
-    testCompile libs.scalatest
+    compile libs.junit
+    compile libs.easymock
+    compile libs.powermockJunit4
+    compile libs.powermockEasymock
+    compile libs.scalatest
   }
 
   jar {

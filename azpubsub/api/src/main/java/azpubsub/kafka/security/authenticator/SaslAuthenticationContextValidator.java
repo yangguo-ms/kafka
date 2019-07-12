@@ -18,7 +18,7 @@ public interface SaslAuthenticationContextValidator {
      *                   For example, saslServer.evaluate(response) will be used to authenticate
      *                   client username/password, or tokens. Once evaluate() succeeds, authorization ID will
      *                   be stored in the context of saslServer, which will be used to construct client principal.
-     * @return
+     * @return AzPubSubPrincipal
      */
     AzPubSubPrincipal authenticate(SaslServer saslServer);
 }
