@@ -64,7 +64,7 @@ public class AzPubSubPrincipalBuilderTest {
         expectedEx.expectMessage("ClassNotFound");
         expectedEx.expectMessage("mockNonExistingSslAuthenticationContextValidator");
 
-        Map<String, Object> configs = new java.util.HashMap<>();
+        Map<String, Object> configs = new HashMap<>();
 
         configs.put(AzPubSubSslAuthenticationValidatorClass, MockPositiveSslAuthenticationContextValidator);
         configs.put(AzPubSubSaslAuthenticationValidatorClass, MockPositiveSaslAuthenticationValidator);
@@ -79,7 +79,7 @@ public class AzPubSubPrincipalBuilderTest {
         expectedEx.expectMessage("ClassNotFound");
         expectedEx.expectMessage("mockNonExistingPositiveSaslAuthenticationContextValidator");
 
-        Map<String, Object> configs = new java.util.HashMap<>();
+        Map<String, Object> configs = new HashMap<>();
 
         configs.put(AzPubSubSslAuthenticationValidatorClass, MockPositiveSslAuthenticationContextValidator);
         configs.put(AzPubSubSaslAuthenticationValidatorClass, MockPositiveSaslAuthenticationValidator);
@@ -110,7 +110,7 @@ public class AzPubSubPrincipalBuilderTest {
 
     @Test
     public void testValidateSaslAuthenticationContextPositive() {
-        Map<String, Object> configs = new java.util.HashMap<>();
+        Map<String, Object> configs = new HashMap<>();
 
         configs.put(AzPubSubSslAuthenticationValidatorClass, MockPositiveSslAuthenticationContextValidator);
         configs.put(AzPubSubSaslAuthenticationValidatorClass, MockPositiveSaslAuthenticationValidator);
@@ -130,7 +130,7 @@ public class AzPubSubPrincipalBuilderTest {
         expectedEx.expect(IllegalSaslStateException.class);
         expectedEx.expectMessage("failed to authenticate the current context");
 
-        Map<String, Object> configs = new java.util.HashMap<>();
+        Map<String, Object> configs = new HashMap<>();
 
         configs.put(AzPubSubSslAuthenticationValidatorClass, MockPositiveSslAuthenticationContextValidator);
         configs.put(AzPubSubSaslAuthenticationValidatorClass, MockPositiveSaslAuthenticationValidator);
@@ -149,7 +149,7 @@ public class AzPubSubPrincipalBuilderTest {
         expectedEx.expect(IllegalStateException.class);
         expectedEx.expectMessage("Ssl Authentication Context Validator failed to validate the current SSL session");
 
-        Map<String, Object> configs = new java.util.HashMap<>();
+        Map<String, Object> configs = new HashMap<>();
 
         configs.put(AzPubSubSslAuthenticationValidatorClass, MockPositiveSslAuthenticationContextValidator);
         configs.put(AzPubSubSaslAuthenticationValidatorClass, MockPositiveSaslAuthenticationValidator);
