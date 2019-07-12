@@ -37,9 +37,6 @@ public class AzPubSubPrincipalBuilderTest {
     private final String MockPositiveSslAuthenticationContextValidator = "mockPositiveSslAuthenticationContextValidator";
     private final String MockPositiveSaslAuthenticationValidator = "mockPositiveSaslAuthenticationContextValidator";
 
-        configs.put("azpubsub.ssl.authentication.validator.class", "mockPositiveSslAuthenticationContextValidator");
-        configs.put("azpubsub.sasl.authentication.validator.class", "mockPositiveSaslAuthenticationContextValidator");
-
     private AzPubSubPrincipalBuilder azPubSubPrincipalBuilder = new AzPubSubPrincipalBuilder();
 
     @Rule
@@ -54,8 +51,8 @@ public class AzPubSubPrincipalBuilderTest {
     public void testConfigurePositive() {
         Map<String, Object> configs = new HashMap<>();
 
-        configs.put("azpubsub.ssl.authentication.validator.class", "mockPositiveSslAuthenticationContextValidator");
-        configs.put("azpubsub.sasl.authentication.validator.class", "mockPositiveSaslAuthenticationContextValidator");
+        configs.put(AzPubSubSslAuthenticationValidatorClass, MockPositiveSslAuthenticationContextValidator);
+        configs.put(AzPubSubSaslAuthenticationValidatorClass, MockPositiveSaslAuthenticationValidator);
         MemberModifier.suppress(MemberMatcher.methodsDeclaredIn(Logger.class));
 
         azPubSubPrincipalBuilder.configure(configs);
@@ -69,8 +66,8 @@ public class AzPubSubPrincipalBuilderTest {
 
         Map<String, Object> configs = new java.util.HashMap<>();
 
-        configs.put("azpubsub.ssl.authentication.validator.class", "mockNonExistingSslAuthenticationContextValidator");
-        configs.put("azpubsub.sasl.authentication.validator.class", "mockNonExistingPositiveSaslAuthenticationContextValidator");
+        configs.put(AzPubSubSslAuthenticationValidatorClass, MockPositiveSslAuthenticationContextValidator);
+        configs.put(AzPubSubSaslAuthenticationValidatorClass, MockPositiveSaslAuthenticationValidator);
         MemberModifier.suppress(MemberMatcher.methodsDeclaredIn(Logger.class));
 
         azPubSubPrincipalBuilder.configure(configs);
@@ -84,8 +81,8 @@ public class AzPubSubPrincipalBuilderTest {
 
         Map<String, Object> configs = new java.util.HashMap<>();
 
-        configs.put("azpubsub.ssl.authentication.validator.class", "mockPositiveSslAuthenticationContextValidator");
-        configs.put("azpubsub.sasl.authentication.validator.class", "mockNonExistingPositiveSaslAuthenticationContextValidator");
+        configs.put(AzPubSubSslAuthenticationValidatorClass, MockPositiveSslAuthenticationContextValidator);
+        configs.put(AzPubSubSaslAuthenticationValidatorClass, MockPositiveSaslAuthenticationValidator);
         MemberModifier.suppress(MemberMatcher.methodsDeclaredIn(Logger.class));
 
         azPubSubPrincipalBuilder.configure(configs);
@@ -95,8 +92,8 @@ public class AzPubSubPrincipalBuilderTest {
     public void testValidateSslAuthenticationContextPositive() {
         Map<String, Object> configs = new HashMap<>();
 
-        configs.put("azpubsub.ssl.authentication.validator.class", "mockPositiveSslAuthenticationContextValidator");
-        configs.put("azpubsub.sasl.authentication.validator.class", "mockPositiveSaslAuthenticationContextValidator");
+        configs.put(AzPubSubSslAuthenticationValidatorClass, MockPositiveSslAuthenticationContextValidator);
+        configs.put(AzPubSubSaslAuthenticationValidatorClass, MockPositiveSaslAuthenticationValidator);
         MemberModifier.suppress(MemberMatcher.methodsDeclaredIn(Logger.class));
 
         SSLSession sslSession = EasyMock.mock(SSLSession.class);
@@ -135,8 +132,8 @@ public class AzPubSubPrincipalBuilderTest {
 
         Map<String, Object> configs = new java.util.HashMap<>();
 
-        configs.put("azpubsub.ssl.authentication.validator.class", "mockPositiveSslAuthenticationContextValidator");
-        configs.put("azpubsub.sasl.authentication.validator.class", "mockSaslAuthenticationContextValidatorWithInvalidAuthentication");
+        configs.put(AzPubSubSslAuthenticationValidatorClass, MockPositiveSslAuthenticationContextValidator);
+        configs.put(AzPubSubSaslAuthenticationValidatorClass, MockPositiveSaslAuthenticationValidator);
         MemberModifier.suppress(MemberMatcher.methodsDeclaredIn(Logger.class));
 
         SaslServer saslServer = EasyMock.mock(SaslServer.class);
@@ -154,8 +151,8 @@ public class AzPubSubPrincipalBuilderTest {
 
         Map<String, Object> configs = new java.util.HashMap<>();
 
-        configs.put("azpubsub.ssl.authentication.validator.class", "mockSslAuthenticationContextValidatorWithInvalidAuthentication");
-        configs.put("azpubsub.sasl.authentication.validator.class", "mockPositiveSaslAuthenticationContextValidator");
+        configs.put(AzPubSubSslAuthenticationValidatorClass, MockPositiveSslAuthenticationContextValidator);
+        configs.put(AzPubSubSaslAuthenticationValidatorClass, MockPositiveSaslAuthenticationValidator);
         MemberModifier.suppress(MemberMatcher.methodsDeclaredIn(Logger.class));
 
         SSLSession sslSession = EasyMock.mock(SSLSession.class);
