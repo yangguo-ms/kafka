@@ -447,6 +447,15 @@ object KafkaConfig {
   val PasswordEncoderKeyLengthProp =  "password.encoder.key.length"
   val PasswordEncoderIterationsProp =  "password.encoder.iterations"
 
+
+  /** ****** AzPubSub Config *****/
+  val AzpubsubTokenValidatorClassProp = "azpubsub.token.validator.class"
+  val AzpubsubValidateTokenInMinutesProp = "azpubsub.validate.token.in.minutes"
+  val AzpubsubClientCertificateAclProp = "azpubsub.client.ceritificate.acl"
+  val AzpubsubSslAuthenticationValidatorClassProp = "azpubsub.ssl.authentication.validator.class"
+  val AzPubSubSaslAuthenticationValidatorClassProp = "azpubsub.sasl.authentication.validator.class"
+  val AzPubSubTopicWhiteListProp = "azpubsub.topic.whitelist"
+
   /* Documentation */
   /** ********* Zookeeper Configuration ***********/
   val ZkConnectDoc = "Zookeeper host string"
@@ -741,6 +750,16 @@ object KafkaConfig {
   val PasswordEncoderKeyLengthDoc =  "The key length used for encoding dynamically configured passwords."
   val PasswordEncoderIterationsDoc =  "The iteration count used for encoding dynamically configured passwords."
 
+  /** ********* AzPubSub Config *********/
+  val AzpubsubTokenValidatorClassDoc = "The class used to validate dSTS token."
+  val AzpubsubValidateTokenInMinutesDoc = "This defines the frequency to validate dSTS token."
+  val AzpubsubClientCertificateAclDoc= "Client Acls accepted by AzPubSub Kakfa Broker."
+  val AzpubsubSslAuthenticationValidatorClassDoc = "The class used to validate Ssl Authentication Context, including client certificate."
+  val AzPubSubSaslAuthenticationValidatorClassDoc = "The class used to validate Sasl Authentication Context."
+  val AzPubSubTopicWhiteListDoc = "Whitelisted topics, separated by comma. All whitelisted topics are authorized to any user/role."
+
+
+
   private val configDef = {
     import ConfigDef.Importance._
     import ConfigDef.Range._
@@ -959,6 +978,14 @@ object KafkaConfig {
       .define(PasswordEncoderCipherAlgorithmProp, STRING, Defaults.PasswordEncoderCipherAlgorithm, LOW, PasswordEncoderCipherAlgorithmDoc)
       .define(PasswordEncoderKeyLengthProp, INT, Defaults.PasswordEncoderKeyLength, atLeast(8), LOW, PasswordEncoderKeyLengthDoc)
       .define(PasswordEncoderIterationsProp, INT, Defaults.PasswordEncoderIterations, atLeast(1024), LOW, PasswordEncoderIterationsDoc)
+
+      /** ********* AzPubSub configs *********/
+      .define(AzpubsubTokenValidatorClassProp, STRING, null, HIGH, AzpubsubTokenValidatorClassDoc)
+      .define(AzpubsubValidateTokenInMinutesProp, INT, 60, between(1, 14400), HIGH, AzpubsubValidateTokenInMinutesDoc)
+      .define(AzpubsubClientCertificateAclProp, STRING, null, HIGH, AzpubsubClientCertificateAclDoc)
+      .define(AzpubsubSslAuthenticationValidatorClassProp, STRING, null, HIGH, AzpubsubSslAuthenticationValidatorClassDoc)
+      .define(AzPubSubSaslAuthenticationValidatorClassProp, STRING, null, HIGH, AzPubSubSaslAuthenticationValidatorClassDoc)
+      .define(AzPubSubTopicWhiteListProp, STRING, "", HIGH, AzPubSubTopicWhiteListDoc)
   }
 
   def configNames() = configDef.names().asScala.toList.sorted
@@ -1216,6 +1243,14 @@ class KafkaConfig(val props: java.util.Map[_, _], doLog: Boolean, dynamicConfigO
 
   val deleteTopicEnable = getBoolean(KafkaConfig.DeleteTopicEnableProp)
   def compressionType = getString(KafkaConfig.CompressionTypeProp)
+
+
+  /** ********* AzPubSub Configuration **************/
+  val AzpubsubTokenValidatorClass = getString(KafkaConfig.AzpubsubTokenValidatorClassProp)
+  val AzpubsubValidateTokenInMinutes= getInt(KafkaConfig.AzpubsubValidateTokenInMinutesProp)
+  val AzpubsubClientCeritificateAcl= getString(KafkaConfig.AzpubsubClientCertificateAclProp)
+  val AzpubsubSslAuthenticationValidatorClass= getString(KafkaConfig.AzpubsubSslAuthenticationValidatorClassProp)
+  val AzPubSubSaslAuthenticationValidatorClass= getString(KafkaConfig.AzPubSubSaslAuthenticationValidatorClassProp)
 
   def addReconfigurable(reconfigurable: Reconfigurable): Unit = {
     dynamicConfig.addReconfigurable(reconfigurable)
