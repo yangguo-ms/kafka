@@ -221,6 +221,15 @@ class AzPubSubAclAuthorizer extends Authorizer with KafkaMetricsGroup {
           }
         }
       }
+      case Group => {
+        return true
+      }
+      case TransactionalId => {
+        return true
+      }
+      case DelegationToken => {
+        return true
+      }
       case _ => {
 
         /**
