@@ -107,13 +107,19 @@ class AzPubSubAclAuthorizer extends Authorizer with KafkaMetricsGroup {
     */
   override def authorize(session: Session, operation: Operation, resource: Resource): Boolean = {
 
-    LOGGER.info(s"principal: ${Try(session.principal.getName).getOrElse("Empty principal name")}, Operation: ${operation.name}")
+    LOGGER.info(s"principal: ${Try(session.principal.getName).getOrElse("Empty principal name")}, Operation: ${operation.name}, Client Address: ${session.clientAddress.getHostAddress}")
 
-    newGauge(
-      AzPubSubAclAuthorizer.AzPubSubAclAuthorizingRequest,
-      new Gauge[Int] {
-        def value = 1
-      })
+    val meterAclAuthorizationRequest = newMeter(AzPubSubAclAuthorizer.AzPubSubAclAuthorizingRequest,
+      "aclauthorizationrequest",
+              TimeUnit.SECONDS)
+    meterAclAuthorizationRequest.mark()
+
+    if(operation == Describe) {
+
+      LOGGER.debug(s"Topic ${resource.name}  metadata description is allowed , authorized, Client Address: ${session.clientAddress.getHostAddress}")
+
+      return true
+    }
 
     resource.resourceType match {
 
@@ -121,14 +127,14 @@ class AzPubSubAclAuthorizer extends Authorizer with KafkaMetricsGroup {
 
         if(topicsWhiteListed.contains(resource.name)) {
 
-          LOGGER.debug(s"Topic ${resource.name} is white listed, authorized.")
+          LOGGER.debug(s"Topic ${resource.name} is white listed, authorized, Client Address: ${session.clientAddress.getHostAddress}")
 
           return true
         }
 
         val acls = getAcls(resource) ++ getAcls(new Resource(resource.resourceType, Resource.WildCardResource))
 
-        LOGGER.debug(s"Acls read from Zookeeper, length: ${acls.size}")
+        LOGGER.debug(s"Topic ${resource.name}'s Acls read from Zookeeper, length: ${acls.size}, Client Address: ${session.clientAddress.getHostAddress}")
 
         session.principal.getPrincipalType match {
 
@@ -176,23 +182,25 @@ class AzPubSubAclAuthorizer extends Authorizer with KafkaMetricsGroup {
 
             if( currentMoment.before(validFrom)){
 
-              LOGGER.warn(s"The ValidFrom date time of the token is in the future, this is invalid. ValidFrom: ${token("ValidFrom")}, now: ${ currentMoment}")
+              LOGGER.warn(s"The ValidFrom date time of the token is in the future, this is invalid. ValidFrom: ${token("ValidFrom")}, now: ${ currentMoment}. Topic to access: ${resource.name}, Client Address: ${session.clientAddress.getHostAddress}")
 
-              newTimer(AzPubSubAclAuthorizer.TokenInvalidFromDatetimeRateMs, TimeUnit.MILLISECONDS, TimeUnit.SECONDS)
+              val meterInValidFrom = newMeter(AzPubSubAclAuthorizer.TokenInvalidFromDatetimeRateMs, "invaliddststoken", TimeUnit.SECONDS)
+              meterInValidFrom.mark()
 
               return false
             }
 
             if( currentMoment.after(validTo)) {
 
-              LOGGER.warn(s"The token has already expired. ValidTo: ${token("ValidTo")}, now: ${currentMoment}")
+              LOGGER.warn(s"The token has already expired. ValidTo: ${token("ValidTo")}, now: ${currentMoment}. Topic to access: ${resource.name}, Client Address: ${session.clientAddress.getHostAddress}")
 
-              newTimer(AzPubSubAclAuthorizer.TokenExpiredRateMs, TimeUnit.MILLISECONDS, TimeUnit.SECONDS)
+              val meterInvalidTo = newMeter(AzPubSubAclAuthorizer.TokenExpiredRateMs, "invaliddststoken", TimeUnit.SECONDS)
+              meterInvalidTo.mark()
 
               return false
             }
 
-            LOGGER.info(s"Token is valid. ValidFrom: ${token("ValidFrom")}, ValidTo: ${token("ValidTo")}")
+            LOGGER.info(s"Token is valid. ValidFrom: ${token("ValidFrom")}, ValidTo: ${token("ValidTo")}. Topic to access: ${resource.name}, Client Address: ${session.clientAddress.getHostAddress}")
 
             token("Roles").asJsonArray.iterator.map(_.to[String]).foreach(r => {
               LOGGER.debug(s"Claim from json token: ${r}")
@@ -200,26 +208,39 @@ class AzPubSubAclAuthorizer extends Authorizer with KafkaMetricsGroup {
 
               if(aclMatch(operation, resource, prin, session.clientAddress.getHostAddress, Allow, acls)){
 
-                LOGGER.info(s"Authorization for ${prin} operation ${operation} on resource ${resource} succeeded.")
+                LOGGER.info(s"Authorization for ${prin} operation ${operation} on resource ${resource} succeeded, Client Address: ${session.clientAddress.getHostAddress}")
 
-                newTimer(AzPubSubAclAuthorizer.TopicAuthorizationUsingTokenSuccessfulRateMs, TimeUnit.MILLISECONDS, TimeUnit.SECONDS)
+                val meterValidToken = newMeter(AzPubSubAclAuthorizer.TopicAuthorizationUsingTokenSuccessfulRateMs, "validtoken", TimeUnit.SECONDS)
+
+                meterValidToken.mark()
 
                 return true
               }
             })
 
-            LOGGER.warn(s"The token doesn't have any role permitted to access the particular topic ${resource.name}.")
+            LOGGER.warn(s"The token doesn't have any role permitted to access the particular topic ${resource.name}, Client Address: ${session.clientAddress.getHostAddress}")
 
-            newTimer(AzPubSubAclAuthorizer.TokenNotAuthorizedForTopicRateMs, TimeUnit.MILLISECONDS, TimeUnit.SECONDS)
+            val meterUnauthorizedToken = newMeter(AzPubSubAclAuthorizer.TokenNotAuthorizedForTopicRateMs, "unauthorizedtoken", TimeUnit.SECONDS)
+
+            meterUnauthorizedToken.mark()
 
             return false
           }
           case _ => {
-            LOGGER.warn(s"unknown principal rejected: ${session.principal}, accessing resource: ${resource}, operation: ${operation}")
+            LOGGER.warn(s"unknown principal rejected: ${session.principal}, accessing resource: ${resource}, operation: ${operation}, Client Address: ${session.clientAddress.getHostAddress}")
 
             return false
           }
         }
+      }
+      case Group => {
+        return true
+      }
+      case TransactionalId => {
+        return true
+      }
+      case DelegationToken => {
+        return true
       }
       case _ => {
 
