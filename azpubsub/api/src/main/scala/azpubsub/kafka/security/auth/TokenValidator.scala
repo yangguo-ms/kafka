@@ -18,4 +18,12 @@ trait TokenValidator {
     * @return
     */
   def validate(base64TokenString: String) : Boolean
+
+  /**
+    * validate token from client, token is allowed to be exipired.
+    * @param base64TokenString token encoded in base64
+    * @return true - if token is valid or even the token is expired but it is not recalled;
+    *         false - if token is invalid (siganture validation failed, etc.)
+    */
+  def validateWithTokenExpiredAllowed(base64TokenString: String) : Boolean
 }
