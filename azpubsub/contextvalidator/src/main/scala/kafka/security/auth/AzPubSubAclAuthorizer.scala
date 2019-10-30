@@ -170,7 +170,7 @@ class AzPubSubAclAuthorizer extends Authorizer with KafkaMetricsGroup {
             //TOKEN cache one --- after one hour/60 MINs, server will re-authenticate the TOKEN again.
             if(cacheTokenLastValidatedTime(token("UniqueId").toString).toInstant.plus(60, ChronoUnit.MINUTES).isBefore(currentMoment.toInstant)) {
 
-              if(false == tokenAuthenticator.validate(token("Base64Token").to[String])){
+              if(false == tokenAuthenticator.validateWithTokenExpiredAllowed(token("Base64Token").to[String])){
 
                 warn(s"token validation failed, token: ${token("Base64Token").to[String]}")
 
