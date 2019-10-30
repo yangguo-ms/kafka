@@ -124,7 +124,7 @@ class AzPubSubAclAuthorizer extends Authorizer with KafkaMetricsGroup {
         }
 
         val acls = getAcls(resource) ++ getAcls(new Resource(resource.resourceType, Resource.WildCardResource))
-        info(s"Acls read from Zookeeper, length: ${acls.size}.")
+        debug(s"Acls read from Zookeeper, length: ${acls.size}.")
 
         session.principal.getPrincipalType match {
 
@@ -186,7 +186,7 @@ class AzPubSubAclAuthorizer extends Authorizer with KafkaMetricsGroup {
               return false
             }
 
-            info(s"Token is valid. ValidFrom: ${token("ValidFrom")}, ValidTo: ${token("ValidTo")}. Topic to access: ${resource.name}, Client Address: ${session.clientAddress.getHostAddress}")
+            debug(s"Token is valid. ValidFrom: ${token("ValidFrom")}, ValidTo: ${token("ValidTo")}. Topic to access: ${resource.name}, Client Address: ${session.clientAddress.getHostAddress}")
             token("Roles").asJsonArray.iterator.map(_.to[String]).foreach(r => {
               debug(s"Claim from json token: ${r}")
               val prin = new KafkaPrincipal(KafkaPrincipal.ROLE_TYPE, r)
@@ -240,7 +240,7 @@ class AzPubSubAclAuthorizer extends Authorizer with KafkaMetricsGroup {
           return false
         }
 
-        info(s"Client is broker and accessing ${resource.resourceType} allowed: ${session.clientAddress.getHostAddress}")
+        debug(s"Client is broker and accessing ${resource.resourceType} allowed: ${session.clientAddress.getHostAddress}")
         return true
       }
     }
@@ -256,7 +256,7 @@ class AzPubSubAclAuthorizer extends Authorizer with KafkaMetricsGroup {
         (acl.host == host || acl.host == Acl.WildCardHost)
     }.exists {
       acl =>
-        info(s"operation = $operations on resource = $resource from host = $host is $permissionType based on acl = $acl")
+        debug(s"operation = $operations on resource = $resource from host = $host is $permissionType based on acl = $acl")
         true
     }
   }
