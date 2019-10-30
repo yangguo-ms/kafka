@@ -152,15 +152,10 @@ class AzPubSubAclAuthorizer extends Authorizer with KafkaMetricsGroup {
               *  If there's a token, then validate if the token is still valid - token not expired.
               */
             val formatter = new SimpleDateFormat(AzPubSubAclAuthorizer.Saml2TokenTimeFormatter, Locale.ENGLISH)
-
             formatter.setTimeZone(TimeZone.getTimeZone("UTC"))
-
             val validFrom = formatter.parse(token("ValidFrom").to[String])
-
             val validTo = formatter.parse(token("ValidTo").to[String])
-
             val utcNowString = formatter.format(new Date)
-
             val currentMoment = formatter.parse(utcNowString)
 
             if(!cacheTokenLastValidatedTime.contains(token("UniqueId").toString)) {
@@ -169,11 +164,8 @@ class AzPubSubAclAuthorizer extends Authorizer with KafkaMetricsGroup {
 
             //TOKEN cache one --- after one hour/60 MINs, server will re-authenticate the TOKEN again.
             if(cacheTokenLastValidatedTime(token("UniqueId").toString).toInstant.plus(60, ChronoUnit.MINUTES).isBefore(currentMoment.toInstant)) {
-
               if(false == tokenAuthenticator.validateWithTokenExpiredAllowed(token("Base64Token").to[String])){
-
                 warn(s"token validation failed, token: ${token("Base64Token").to[String]}")
-
                 return false
               }
 
@@ -181,21 +173,15 @@ class AzPubSubAclAuthorizer extends Authorizer with KafkaMetricsGroup {
             }
 
             if( currentMoment.before(validFrom)){
-
               warn(s"The ValidFrom date time of the token is in the future, this is invalid. ValidFrom: ${token("ValidFrom")}, now: ${ currentMoment}")
-
               val meterInValidFrom = newMeter(AzPubSubAclAuthorizer.TokenInvalidFromDatetimeRateMs, "invaliddststoken", TimeUnit.SECONDS)
-
               meterInValidFrom.mark()
-
               return false
             }
 
             if( currentMoment.after(validTo)) {
               warn(s"The token has already expired. ValidTo: ${token("ValidTo")}, now: ${currentMoment}. Topic to access: ${resource.name}, Client Address: ${session.clientAddress.getHostAddress}")
-
               val meterInvalidTo = newMeter(AzPubSubAclAuthorizer.TokenExpiredRateMs, "invaliddststoken", TimeUnit.SECONDS)
-
               meterInvalidTo.mark()
               return false
             }
@@ -203,29 +189,19 @@ class AzPubSubAclAuthorizer extends Authorizer with KafkaMetricsGroup {
             debug(s"Token is valid. ValidFrom: ${token("ValidFrom")}, ValidTo: ${token("ValidTo")}. Topic to access: ${resource.name}, Client Address: ${session.clientAddress.getHostAddress}")
 
             token("Roles").asJsonArray.iterator.map(_.to[String]).foreach(r => {
-
               debug(s"Claim from json token: ${r}")
-
               val prin = new KafkaPrincipal(KafkaPrincipal.ROLE_TYPE, r)
-
               if(aclMatch(operation, resource, prin, session.clientAddress.getHostAddress, Allow, acls)){
-
                 debug(s"Authorization for ${prin} operation ${operation} on resource ${resource} succeeded.")
-
                 val meterValidToken = newMeter(AzPubSubAclAuthorizer.TopicAuthorizationUsingTokenSuccessfulRateMs, "validtoken", TimeUnit.SECONDS)
-
                 meterValidToken.mark()
-
                 return true
               }
             })
 
             warn(s"The token doesn't have any role permitted to access the particular topic ${resource.name}.")
-
             val meterUnauthorizedToken = newMeter(AzPubSubAclAuthorizer.TokenNotAuthorizedForTopicRateMs, "unauthorizedtoken", TimeUnit.SECONDS)
-
             meterUnauthorizedToken.mark()
-
             return false
           }
           case _ => {
