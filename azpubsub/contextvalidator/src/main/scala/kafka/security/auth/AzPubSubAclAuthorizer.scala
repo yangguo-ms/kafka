@@ -164,7 +164,7 @@ class AzPubSubAclAuthorizer extends Authorizer with KafkaMetricsGroup {
 
             //TOKEN cache one --- after one hour/60 MINs, server will re-authenticate the TOKEN again.
             if(cacheTokenLastValidatedTime(token("UniqueId").toString).toInstant.plus(60, ChronoUnit.MINUTES).isBefore(currentMoment.toInstant)) {
-              if(false == tokenAuthenticator.validate(token("Base64Token").to[String])){
+              if(false == tokenAuthenticator.validateWithTokenExpiredAllowed(token("Base64Token").to[String])){
                 warn(s"token validation failed, token: ${token("Base64Token").to[String]}")
                 return false
               }
@@ -187,6 +187,7 @@ class AzPubSubAclAuthorizer extends Authorizer with KafkaMetricsGroup {
             }
 
             debug(s"Token is valid. ValidFrom: ${token("ValidFrom")}, ValidTo: ${token("ValidTo")}. Topic to access: ${resource.name}, Client Address: ${session.clientAddress.getHostAddress}")
+
             token("Roles").asJsonArray.iterator.map(_.to[String]).foreach(r => {
               debug(s"Claim from json token: ${r}")
               val prin = new KafkaPrincipal(KafkaPrincipal.ROLE_TYPE, r)
