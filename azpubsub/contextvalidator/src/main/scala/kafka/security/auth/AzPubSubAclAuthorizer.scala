@@ -232,7 +232,7 @@ class AzPubSubAclAuthorizer extends Authorizer with KafkaMetricsGroup {
           val allBrokers = zkClient.getAllBrokersInCluster
           allBrokers.foreach(b => b.endPoints.foreach(e => {
             brokerHosts += InetAddress.getByName(e.host).getHostAddress
-            info(s"Kafka broker host : ${e.host}")
+            debug(s"Kafka broker host : ${e.host}")
           }))
         }
 
