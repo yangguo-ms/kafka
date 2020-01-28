@@ -168,10 +168,12 @@ public class OAuthBearerSaslServer implements SaslServer {
          * We support the client specifying an authorization ID as per the SASL
          * specification, but it must match the principal name if it is specified.
          */
-        if (!authorizationId.isEmpty() && !authorizationId.equals(token.principalName()))
-            throw new SaslAuthenticationException(String.format(
-                    "Authentication failed: Client requested an authorization id (%s) that is different from the token's principal name (%s)",
-                    authorizationId, token.principalName()));
+
+        if (!authorizationId.isEmpty() && authorizationId.equals(token.principalName())) {
+               throw new SaslAuthenticationException(String.format(
+                       "Authentication failed: Client requested an authorization id (%s) that is different from the token's principal name (%s)",
+                       authorizationId, token.principalName()));
+        }
 
         Map<String, String> validExtensions = processExtensions(token, extensions);
 
