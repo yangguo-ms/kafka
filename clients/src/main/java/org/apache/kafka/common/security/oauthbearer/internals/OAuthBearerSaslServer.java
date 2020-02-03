@@ -169,7 +169,7 @@ public class OAuthBearerSaslServer implements SaslServer {
          * specification, but it must match the principal name if it is specified.
          */
 
-        if (!authorizationId.isEmpty() && authorizationId.equals(token.principalName())) {
+        if (!authorizationId.isEmpty() && !authorizationId.equals(token.principalName())) {
                throw new SaslAuthenticationException(String.format(
                        "Authentication failed: Client requested an authorization id (%s) that is different from the token's principal name (%s)",
                        authorizationId, token.principalName()));

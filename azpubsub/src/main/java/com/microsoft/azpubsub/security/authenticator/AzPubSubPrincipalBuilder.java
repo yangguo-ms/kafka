@@ -6,7 +6,6 @@ import javax.net.ssl.SSLSession;
 import javax.security.sasl.SaslServer;
 
 import org.apache.kafka.common.Configurable;
-import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.security.auth.AuthenticationContext;
 import org.apache.kafka.common.security.auth.KafkaPrincipal;
 import org.apache.kafka.common.security.auth.SaslAuthenticationContext;
@@ -61,7 +60,7 @@ public class AzPubSubPrincipalBuilder extends DefaultKafkaPrincipalBuilder imple
                 );
     	} else if (context instanceof SaslAuthenticationContext) {
             SaslServer saslServer = ((SaslAuthenticationContext) context).server();
-            if (!SaslConfigs.GSSAPI_MECHANISM.equals(saslServer.getMechanismName())) {
+            if (OAuthBearerLoginModule.OAUTHBEARER_MECHANISM.equals(saslServer.getMechanismName())) {
                 AzPubSubOAuthBearerToken token = (AzPubSubOAuthBearerToken)saslServer.getNegotiatedProperty(OAuthBearerLoginModule.OAUTHBEARER_MECHANISM + ".token");
                 return new AzPubSubPrincipal(
                             KafkaPrincipal.USER_TYPE,

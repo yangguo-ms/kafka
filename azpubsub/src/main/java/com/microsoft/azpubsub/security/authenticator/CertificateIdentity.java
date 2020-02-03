@@ -10,7 +10,8 @@ public class CertificateIdentity {
     private String principalName;
     private Set<String> scopes;
 
-    public CertificateIdentity() {
+    public CertificateIdentity(String principalName) {
+        this.principalName = principalName;
         this.scopes = new HashSet<String>();
     }
 

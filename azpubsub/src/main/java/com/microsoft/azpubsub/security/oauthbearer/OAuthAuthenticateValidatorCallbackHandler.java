@@ -80,7 +80,6 @@ public class OAuthAuthenticateValidatorCallbackHandler implements AuthenticateCa
 
         OAuthBearerToken token = oAuthAuthenticateValidator.introspectBearer(accessToken);
 
-        // Implement Check Expire Token..
         long now = time.milliseconds();
         if (now > token.lifetimeMs()){
             throw new OAuthBearerIllegalTokenException(OAuthBearerValidationResult.newFailure("Token Expired - need re-authentication!"));
