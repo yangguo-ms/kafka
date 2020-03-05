@@ -54,7 +54,7 @@ public class AzPubSubPrincipalBuilder extends DefaultKafkaPrincipalBuilder imple
             SSLSession sslSession = ((SslAuthenticationContext) context).session();
             CertificateIdentity identity = this.certificateIdentifier.getIdentity(sslSession);
             return new AzPubSubPrincipal(
-                    KafkaPrincipal.USER_TYPE,
+                    AzPubSubPrincipal.CERTIFICATE_TYPE,
                     identity.principalName(),
                     identity.scope()
                 );
@@ -63,10 +63,10 @@ public class AzPubSubPrincipalBuilder extends DefaultKafkaPrincipalBuilder imple
             if (OAuthBearerLoginModule.OAUTHBEARER_MECHANISM.equals(saslServer.getMechanismName())) {
                 AzPubSubOAuthBearerToken token = (AzPubSubOAuthBearerToken)saslServer.getNegotiatedProperty(OAuthBearerLoginModule.OAUTHBEARER_MECHANISM + ".token");
                 return new AzPubSubPrincipal(
-                            KafkaPrincipal.USER_TYPE,
-                            token.principalName(),
-                            token.scope()
-                        );
+                        AzPubSubPrincipal.ROLE_TYPE,
+                        token.principalName(),
+                        token.scope()
+                    );
             }
         }
 
