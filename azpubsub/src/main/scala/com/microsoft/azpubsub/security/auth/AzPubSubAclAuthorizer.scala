@@ -11,20 +11,22 @@ import kafka.security.auth.SimpleAclAuthorizer
 import kafka.utils.Logging
 
 /*
- * AzPubSub ACL Authorizer to handle the role
+ * AzPubSub ACL Authorizer to handle the certificate & role based principal type
  */
 class AzPubSubAclAuthorizer extends SimpleAclAuthorizer with Logging {
   override def authorize(session: Session, operation: Operation, resource: Resource): Boolean = {
     val sessionPrincipal = session.principal
-    if (classOf[AzPubSubPrincipal] != sessionPrincipal.getClass)
+    if (classOf[AzPubSubPrincipal] == sessionPrincipal.getClass) {
+      val principal = sessionPrincipal.asInstanceOf[AzPubSubPrincipal]
+      for (role <- principal.getRoles.asScala) {
+        val claimPrincipal = new KafkaPrincipal(principal.getPrincipalType(), role)
+        val claimSession = new Session(claimPrincipal, session.clientAddress)
+        if (super.authorize(claimSession, operation, resource)) {
+          return true
+        }
+      }
+    } else {
       return super.authorize(session, operation, resource)
-
-    val principal = sessionPrincipal.asInstanceOf[AzPubSubPrincipal]
-    for (role <- principal.getRoles.asScala) {
-      val claimPrincipal = new KafkaPrincipal(KafkaPrincipal.USER_TYPE, role)
-      val claimSession = new Session(claimPrincipal, session.clientAddress)
-      if (super.authorize(claimSession, operation, resource))
-        return true
     }
 
     return false

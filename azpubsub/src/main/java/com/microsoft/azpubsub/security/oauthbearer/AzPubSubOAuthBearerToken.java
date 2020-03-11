@@ -1,6 +1,6 @@
 package com.microsoft.azpubsub.security.oauthbearer;
 
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Set;
 
 import org.apache.kafka.common.security.oauthbearer.OAuthBearerToken;
@@ -18,7 +18,7 @@ public class AzPubSubOAuthBearerToken implements OAuthBearerToken {
     public AzPubSubOAuthBearerToken(String accessToken, long lifetimeS, String principalName, Long startTimeMs) {
         super();
         this.value = accessToken;
-        this.scopes = new HashSet<String>();
+        this.scopes = new LinkedHashSet<String>();
         this.lifetimeMs = lifetimeS;
         this.principalName= principalName;
         this.startTimeMs = startTimeMs;

@@ -1,6 +1,6 @@
 package com.microsoft.azpubsub.security.authenticator;
 
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Set;
 
 /*
@@ -12,7 +12,7 @@ public class CertificateIdentity {
 
     public CertificateIdentity(String principalName) {
         this.principalName = principalName;
-        this.scopes = new HashSet<String>();
+        this.scopes = new LinkedHashSet<String>();
     }
 
     public String principalName() {
