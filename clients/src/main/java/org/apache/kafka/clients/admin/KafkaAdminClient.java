@@ -2809,7 +2809,7 @@ public class KafkaAdminClient extends AdminClient {
                     context.getFuture().complete(consumerGroupDescription);
                 } else {
                     context.getFuture().completeExceptionally(new IllegalArgumentException(
-                        String.format("GroupId {} is not a consumer group ({}).",
+                        String.format("GroupId %s is not a consumer group (%s).",
                             context.getGroupId(), protocolType)));
                 }
             }
@@ -3019,7 +3019,12 @@ public class KafkaAdminClient extends AdminClient {
                         final Long offset = partitionData.offset;
                         final String metadata = partitionData.metadata;
                         final Optional<Integer> leaderEpoch = partitionData.leaderEpoch;
-                        groupOffsetsListing.put(topicPartition, new OffsetAndMetadata(offset, leaderEpoch, metadata));
+                        // Negative offset indicates that the group has no committed offset for this partition
+                        if (offset < 0) {
+                            groupOffsetsListing.put(topicPartition, null);
+                        } else {
+                            groupOffsetsListing.put(topicPartition, new OffsetAndMetadata(offset, leaderEpoch, metadata));
+                        }
                     } else {
                         log.warn("Skipping return offset for {} due to error {}.", topicPartition, error);
                     }

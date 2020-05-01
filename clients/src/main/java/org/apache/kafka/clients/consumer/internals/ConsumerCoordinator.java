@@ -727,11 +727,14 @@ public final class ConsumerCoordinator extends AbstractCoordinator {
 
         // we need to rejoin if we performed the assignment and metadata has changed;
         // also for those owned-but-no-longer-existed partitions we should drop them as lost
-        if (assignmentSnapshot != null && !assignmentSnapshot.matches(metadataSnapshot))
+        if (assignmentSnapshot != null && !assignmentSnapshot.matches(metadataSnapshot)) {
+            requestRejoin();
             return true;
+        }
 
         // we need to join if our subscription has changed since the last join
         if (joinedSubscription != null && !joinedSubscription.equals(subscriptions.subscription())) {
+            requestRejoin();
             return true;
         }
 
@@ -1307,7 +1310,7 @@ public final class ConsumerCoordinator extends AbstractCoordinator {
 
         private MetadataSnapshot(SubscriptionState subscription, Cluster cluster, int version) {
             Map<String, Integer> partitionsPerTopic = new HashMap<>();
-            for (String topic : subscription.groupSubscription()) {
+            for (String topic : subscription.metadataTopics()) {
                 Integer numPartitions = cluster.partitionCountForTopic(topic);
                 if (numPartitions != null)
                     partitionsPerTopic.put(topic, numPartitions);
@@ -1320,9 +1323,6 @@ public final class ConsumerCoordinator extends AbstractCoordinator {
             return version == other.version || partitionsPerTopic.equals(other.partitionsPerTopic);
         }
 
-        Map<String, Integer> partitionsPerTopic() {
-            return partitionsPerTopic;
-        }
     }
 
     private static class OffsetCommitCompletion {

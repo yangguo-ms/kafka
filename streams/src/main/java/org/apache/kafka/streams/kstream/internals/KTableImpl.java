@@ -75,6 +75,7 @@ import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import static org.apache.kafka.streams.kstream.internals.graph.GraphGraceSearchUtil.findAndVerifyWindowGrace;
 
@@ -952,24 +953,48 @@ public class KTableImpl<K, S, V> extends AbstractStream<K, V> implements KTable<
         //This occurs whenever the extracted foreignKey changes values.
         enableSendingOldValues();
 
+        final NamedInternal renamed = new NamedInternal(joinName);
+
+        final String subscriptionTopicName = renamed.suffixWithOrElseGet(
+            "-subscription-registration",
+            builder,
+            SUBSCRIPTION_REGISTRATION
+        ) + TOPIC_SUFFIX;
+
+        // the decoration can't be performed until we have the configuration available when the app runs,
+        // so we pass Suppliers into the components, which they can call at run time
+
+        final Supplier<String> subscriptionPrimaryKeySerdePseudoTopic =
+            () -> internalTopologyBuilder().decoratePseudoTopic(subscriptionTopicName + "-pk");
+
+        final Supplier<String> subscriptionForeignKeySerdePseudoTopic =
+            () -> internalTopologyBuilder().decoratePseudoTopic(subscriptionTopicName + "-fk");
+
+        final Supplier<String> valueHashSerdePseudoTopic =
+            () -> internalTopologyBuilder().decoratePseudoTopic(subscriptionTopicName + "-vh");
+
+        builder.internalTopologyBuilder.addInternalTopic(subscriptionTopicName);
+
         final Serde<KO> foreignKeySerde = ((KTableImpl<KO, VO, ?>) foreignKeyTable).keySerde;
-        final Serde<SubscriptionWrapper<K>> subscriptionWrapperSerde = new SubscriptionWrapperSerde<>(keySerde);
+        final Serde<SubscriptionWrapper<K>> subscriptionWrapperSerde = new SubscriptionWrapperSerde<>(subscriptionPrimaryKeySerdePseudoTopic, keySerde);
         final SubscriptionResponseWrapperSerde<VO> responseWrapperSerde =
             new SubscriptionResponseWrapperSerde<>(((KTableImpl<KO, VO, VO>) foreignKeyTable).valSerde);
 
-
-        final NamedInternal renamed = new NamedInternal(joinName);
-        final String subscriptionTopicName = renamed.suffixWithOrElseGet("-subscription-registration", builder, SUBSCRIPTION_REGISTRATION) + TOPIC_SUFFIX;
-        builder.internalTopologyBuilder.addInternalTopic(subscriptionTopicName);
-        final CombinedKeySchema<KO, K> combinedKeySchema = new CombinedKeySchema<>(subscriptionTopicName, foreignKeySerde, keySerde);
+        final CombinedKeySchema<KO, K> combinedKeySchema = new CombinedKeySchema<>(
+            subscriptionForeignKeySerdePseudoTopic,
+            foreignKeySerde,
+            subscriptionPrimaryKeySerdePseudoTopic,
+            keySerde
+        );
 
         final ProcessorGraphNode<K, Change<V>> subscriptionNode = new ProcessorGraphNode<>(
             new ProcessorParameters<>(
                 new ForeignJoinSubscriptionSendProcessorSupplier<>(
                     foreignKeyExtractor,
+                    subscriptionForeignKeySerdePseudoTopic,
+                    valueHashSerdePseudoTopic,
                     foreignKeySerde,
-                    subscriptionTopicName,
-                    valSerde.serializer(),
+                    valSerde == null ? null : valSerde.serializer(),
                     leftJoin
                 ),
                 renamed.suffixWithOrElseGet("-subscription-registration-processor", builder, SUBSCRIPTION_REGISTRATION)
@@ -1072,7 +1097,8 @@ public class KTableImpl<K, S, V> extends AbstractStream<K, V> implements KTable<
         final KTableValueGetterSupplier<K, V> primaryKeyValueGetter = valueGetterSupplier();
         final SubscriptionResolverJoinProcessorSupplier<K, V, VO, VR> resolverProcessorSupplier = new SubscriptionResolverJoinProcessorSupplier<>(
             primaryKeyValueGetter,
-            valueSerde().serializer(),
+            valSerde == null ? null : valSerde.serializer(),
+            valueHashSerdePseudoTopic,
             joiner,
             leftJoin
         );
@@ -1107,9 +1133,8 @@ public class KTableImpl<K, S, V> extends AbstractStream<K, V> implements KTable<
         );
 
         final StoreBuilder<TimestampedKeyValueStore<K, VR>> resultStore =
-            materializedInternal.queryableStoreName() == null
-                ? null
-                : new TimestampedKeyValueStoreMaterializer<>(materializedInternal).materialize();
+            new TimestampedKeyValueStoreMaterializer<>(materializedInternal).materialize();
+
         final TableProcessorNode<K, VR> resultNode = new TableProcessorNode<>(
             resultProcessorName,
             new ProcessorParameters<>(
