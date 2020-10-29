@@ -147,20 +147,23 @@ object AclCommand extends Logging {
         val filters = getResourceFilter(opts, dieIfNoResourceFound = false)
         val listPrincipals = getPrincipals(opts, opts.listPrincipalsOpt)
         val resourceToAcls = getAcls(adminClient, filters)
+        printAcls(filters, listPrincipals, resourceToAcls)
+      }
+    }
 
-        if (listPrincipals.isEmpty) {
-          for ((resource, acls) <- resourceToAcls)
+    def printAcls(filters :Set[ResourcePatternFilter], listPrincipals :Set[KafkaPrincipal], resourceToAcls :Map[ResourcePattern, Set[AccessControlEntry]]): Unit = {
+      if (listPrincipals.isEmpty) {
+        for ((resource, acls) <- resourceToAcls)
+          println(s"Current ACLs for resource `$resource`: $Newline ${acls.map("\t" + _).mkString(Newline)} $Newline")
+      } else {
+        listPrincipals.foreach(principal => {
+          println(s"ACLs for principal `$principal`")
+          val filteredResourceToAcls =  resourceToAcls.mapValues(acls =>
+            acls.filter(acl => principal.toString.equals(acl.principal))).filter(entry => entry._2.nonEmpty)
+
+          for ((resource, acls) <- filteredResourceToAcls)
             println(s"Current ACLs for resource `$resource`: $Newline ${acls.map("\t" + _).mkString(Newline)} $Newline")
-        } else {
-          listPrincipals.foreach(principal => {
-            println(s"ACLs for principal `$principal`")
-            val filteredResourceToAcls =  resourceToAcls.mapValues(acls =>
-              acls.filter(acl => principal.toString.equals(acl.principal))).filter(entry => entry._2.nonEmpty)
-
-            for ((resource, acls) <- filteredResourceToAcls)
-              println(s"Current ACLs for resource `$resource`: $Newline ${acls.map("\t" + _).mkString(Newline)} $Newline")
-          })
-        }
+        })
       }
     }
 
@@ -441,7 +444,7 @@ object AclCommand extends Logging {
     resourceToAcls
   }
 
-  private def getProducerResourceFilterToAcls(opts: AclCommandOptions): Map[ResourcePatternFilter, Set[AccessControlEntry]] = {
+  def getProducerResourceFilterToAcls(opts: AclCommandOptions): Map[ResourcePatternFilter, Set[AccessControlEntry]] = {
     val filters = getResourceFilter(opts)
 
     val topics: Set[ResourcePatternFilter] = filters.filter(_.resourceType == JResourceType.TOPIC)
@@ -460,7 +463,7 @@ object AclCommand extends Logging {
           Map.empty)
   }
 
-  private def getConsumerResourceFilterToAcls(opts: AclCommandOptions): Map[ResourcePatternFilter, Set[AccessControlEntry]] = {
+  def getConsumerResourceFilterToAcls(opts: AclCommandOptions): Map[ResourcePatternFilter, Set[AccessControlEntry]] = {
     val filters = getResourceFilter(opts)
 
     val topics: Set[ResourcePatternFilter] = filters.filter(_.resourceType == JResourceType.TOPIC)
@@ -480,7 +483,7 @@ object AclCommand extends Logging {
     filters.map(_ -> acls).toMap
   }
 
-  private def getAcl(opts: AclCommandOptions, operations: Set[AclOperation]): Set[AccessControlEntry] = {
+  def getAcl(opts: AclCommandOptions, operations: Set[AclOperation]): Set[AccessControlEntry] = {
     val allowedPrincipals = getPrincipals(opts, opts.allowPrincipalsOpt)
 
     val deniedPrincipals = getPrincipals(opts, opts.denyPrincipalsOpt)
