@@ -1,11 +1,19 @@
 package com.microsoft.log4j;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InterruptedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.log4j.FileAppender;
 import org.apache.log4j.Layout;
@@ -104,16 +112,44 @@ public class DatedRollingFileAppender extends FileAppender {
       LogLog.debug("Roll over the log to next day. Current Log File name: " + this.fileName);
 
       try {
-        // delete old file
+        // delete old file(s)
         if (this.maxBackupIndex > 0) {
-          Calendar c = Calendar.getInstance();
-          c.setTime(new Date(this.nextRolloverCheck));
-          c.add(Calendar.DATE, -(this.maxBackupIndex + 1));
+          Path logFile = Paths.get(this.originalFileName);
+          Pattern pattern = Pattern.compile("^" + logFile.getFileName() + ".(?<yy>\\d{4})-(?<mm>\\d{2})-(?<dd>\\d{2})$");
+          // date till the log files to be retained
+          LocalDate dateTillToRetain =
+              Instant.ofEpochMilli(this.nextRolloverCheck)
+              .atZone(ZoneId.systemDefault())
+              .toLocalDate()
+              .minusDays(this.maxBackupIndex + 1);
 
-          String deleteFileName = this.originalFileName + sdf.format(c.getTime());
-          File file = new File(deleteFileName);
-          if (file.exists())
-            file.delete();
+          // get the log root folder
+          Path logPath = logFile.getParent();
+          // find all files that are older than configured no. of days to retain and delete all those files
+          Files.find(logPath, 1, 
+              (path, basicFileAttributes) -> {
+                if (!path.toFile().isDirectory()) {
+                  Matcher matcher = pattern.matcher(path.getFileName().toString());
+                  if (matcher.matches()) {
+                    int day = Integer.parseInt(matcher.group("dd"));
+                    int month = Integer.parseInt(matcher.group("mm"));
+                    int year = Integer.parseInt(matcher.group("yy"));
+                    LocalDate logFileDate = LocalDate.of(year, month, day);
+                    Duration dur = Duration.between(logFileDate.atStartOfDay(), dateTillToRetain.atStartOfDay());
+                    if (dur.toDays() > 0) {
+                      // if the duration is greater than 0, it is older than configured no. of days to retain
+                      return true;
+                    }
+                  }
+                }
+    
+                // retain the log file
+                return false;
+              })
+          .forEach(path -> {
+        	// delete the log file
+            path.toFile().delete();
+          });
         }
 
         // This will also close the file. This is OK since multiple
