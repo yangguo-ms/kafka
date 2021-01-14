@@ -18,19 +18,26 @@ package kafka.utils
 
 import java.nio.charset.StandardCharsets
 
-import org.junit.Assert._
-import org.junit.Test
+import com.fasterxml.jackson.annotation.JsonProperty
+import com.fasterxml.jackson.core.JsonParseException
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node._
+import kafka.utils.JsonTest.TestObject
 import kafka.utils.json.JsonValue
+import org.junit.Assert._
+import org.junit.Test
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.Map
+
+object JsonTest {
+  case class TestObject(@JsonProperty("foo") foo: String, @JsonProperty("bar") bar: Int)
+}
 
 class JsonTest {
 
   @Test
-  def testJsonParse() {
+  def testJsonParse(): Unit = {
     val jnf = JsonNodeFactory.instance
 
     assertEquals(Json.parseFull("{}"), Some(JsonValue(new ObjectNode(jnf))))
@@ -48,40 +55,14 @@ class JsonTest {
     assertEquals(Json.parseFull("[1, 2, 3]"), Some(JsonValue(arrayNode)))
 
     // Test with encoder that properly escapes backslash and quotes
-    val map = Map("foo1" -> """bar1\,bar2""", "foo2" -> """\bar""")
-    val encoded = Json.legacyEncodeAsString(map)
+    val map = Map("foo1" -> """bar1\,bar2""", "foo2" -> """\bar""").asJava
+    val encoded = Json.encodeAsString(map)
     val decoded = Json.parseFull(encoded)
     assertEquals(Json.parseFull("""{"foo1":"bar1\\,bar2", "foo2":"\\bar"}"""), decoded)
-
-    // Test strings with non-escaped backslash and quotes. This is to verify that ACLs
-    // containing non-escaped chars persisted using 1.0 can be parsed.
-    assertEquals(decoded, Json.parseFull("""{"foo1":"bar1\,bar2", "foo2":"\bar"}"""))
   }
 
   @Test
-  def testLegacyEncodeAsString() {
-    assertEquals("null", Json.legacyEncodeAsString(null))
-    assertEquals("1", Json.legacyEncodeAsString(1))
-    assertEquals("1", Json.legacyEncodeAsString(1L))
-    assertEquals("1", Json.legacyEncodeAsString(1.toByte))
-    assertEquals("1", Json.legacyEncodeAsString(1.toShort))
-    assertEquals("1.0", Json.legacyEncodeAsString(1.0))
-    assertEquals(""""str"""", Json.legacyEncodeAsString("str"))
-    assertEquals("true", Json.legacyEncodeAsString(true))
-    assertEquals("false", Json.legacyEncodeAsString(false))
-    assertEquals("[]", Json.legacyEncodeAsString(Seq()))
-    assertEquals("[1,2,3]", Json.legacyEncodeAsString(Seq(1,2,3)))
-    assertEquals("""[1,"2",[3]]""", Json.legacyEncodeAsString(Seq(1,"2",Seq(3))))
-    assertEquals("{}", Json.legacyEncodeAsString(Map()))
-    assertEquals("""{"a":1,"b":2}""", Json.legacyEncodeAsString(Map("a" -> 1, "b" -> 2)))
-    assertEquals("""{"a":[1,2],"c":[3,4]}""", Json.legacyEncodeAsString(Map("a" -> Seq(1,2), "c" -> Seq(3,4))))
-    assertEquals(""""str1\\,str2"""", Json.legacyEncodeAsString("""str1\,str2"""))
-    assertEquals(""""\"quoted\""""", Json.legacyEncodeAsString(""""quoted""""))
-
-  }
-
-  @Test
-  def testEncodeAsString() {
+  def testEncodeAsString(): Unit = {
     assertEquals("null", Json.encodeAsString(null))
     assertEquals("1", Json.encodeAsString(1))
     assertEquals("1", Json.encodeAsString(1L))
@@ -104,7 +85,7 @@ class JsonTest {
   }
 
   @Test
-  def testEncodeAsBytes() {
+  def testEncodeAsBytes(): Unit = {
     assertEquals("null", new String(Json.encodeAsBytes(null), StandardCharsets.UTF_8))
     assertEquals("1", new String(Json.encodeAsBytes(1), StandardCharsets.UTF_8))
     assertEquals("1", new String(Json.encodeAsBytes(1L), StandardCharsets.UTF_8))
@@ -125,5 +106,20 @@ class JsonTest {
     assertEquals(""""str1\\,str2"""", new String(Json.encodeAsBytes("""str1\,str2"""), StandardCharsets.UTF_8))
     assertEquals(""""\"quoted\""""", new String(Json.encodeAsBytes(""""quoted""""), StandardCharsets.UTF_8))
   }
-  
+
+  @Test
+  def testParseTo() = {
+    val foo = "baz"
+    val bar = 1
+
+    val result = Json.parseStringAs[TestObject](s"""{"foo": "$foo", "bar": $bar}""")
+
+    assertEquals(Right(TestObject(foo, bar)), result)
+  }
+
+  @Test
+  def testParseToWithInvalidJson() = {
+    val result = Json.parseStringAs[TestObject]("{invalid json}")
+    assertEquals(Left(classOf[JsonParseException]), result.left.map(_.getClass))
+  }
 }

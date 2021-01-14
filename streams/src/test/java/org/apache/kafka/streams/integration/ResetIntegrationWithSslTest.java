@@ -25,16 +25,15 @@ import org.apache.kafka.test.TestUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
+import java.util.Map;
 import java.util.Properties;
 
 /**
  * Tests command line SSL setup for reset tool.
  */
-@Ignore
 @Category({IntegrationTest.class})
 public class ResetIntegrationWithSslTest extends AbstractResetIntegrationTest {
 
@@ -42,6 +41,8 @@ public class ResetIntegrationWithSslTest extends AbstractResetIntegrationTest {
     public static final EmbeddedKafkaCluster CLUSTER;
 
     private static final String TEST_ID = "reset-with-ssl-integration-test";
+
+    private static final Map<String, Object> SSL_CONFIG;
 
     static {
         final Properties brokerProps = new Properties();
@@ -51,16 +52,21 @@ public class ResetIntegrationWithSslTest extends AbstractResetIntegrationTest {
         brokerProps.put(KafkaConfig$.MODULE$.ConnectionsMaxIdleMsProp(), -1L);
 
         try {
-            sslConfig = TestSslUtils.createSslConfig(false, true, Mode.SERVER, TestUtils.tempFile(), "testCert");
+            SSL_CONFIG = TestSslUtils.createSslConfig(false, true, Mode.SERVER, TestUtils.tempFile(), "testCert");
 
             brokerProps.put(KafkaConfig$.MODULE$.ListenersProp(), "SSL://localhost:0");
             brokerProps.put(KafkaConfig$.MODULE$.InterBrokerListenerNameProp(), "SSL");
-            brokerProps.putAll(sslConfig);
+            brokerProps.putAll(SSL_CONFIG);
         } catch (final Exception e) {
             throw new RuntimeException(e);
         }
 
         CLUSTER = new EmbeddedKafkaCluster(1, brokerProps);
+    }
+
+    @Override
+    Map<String, Object> getClientSslConfig() {
+        return SSL_CONFIG;
     }
 
     @Before
@@ -82,6 +88,11 @@ public class ResetIntegrationWithSslTest extends AbstractResetIntegrationTest {
 
     @Test
     public void testReprocessingFromScratchAfterResetWithIntermediateUserTopic() throws Exception {
-        super.testReprocessingFromScratchAfterResetWithIntermediateUserTopic();
+        super.testReprocessingFromScratchAfterResetWithIntermediateUserTopic(false);
+    }
+
+    @Test
+    public void testReprocessingFromScratchAfterResetWithIntermediateInternalTopic() throws Exception {
+        super.testReprocessingFromScratchAfterResetWithIntermediateUserTopic(true);
     }
 }

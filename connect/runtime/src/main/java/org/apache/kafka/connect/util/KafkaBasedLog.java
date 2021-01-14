@@ -28,13 +28,14 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.errors.TimeoutException;
 import org.apache.kafka.common.errors.WakeupException;
 import org.apache.kafka.common.utils.Time;
-import org.apache.kafka.common.utils.Utils;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -43,6 +44,7 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 
 /**
@@ -68,10 +70,12 @@ import java.util.concurrent.Future;
  */
 public class KafkaBasedLog<K, V> {
     private static final Logger log = LoggerFactory.getLogger(KafkaBasedLog.class);
-    private static final long CREATE_TOPIC_TIMEOUT_MS = 30000;
+    private static final long CREATE_TOPIC_TIMEOUT_NS = TimeUnit.SECONDS.toNanos(30);
+    private static final long MAX_SLEEP_MS = TimeUnit.SECONDS.toMillis(1);
 
     private Time time;
     private final String topic;
+    private int partitionCount;
     private final Map<String, Object> producerConfigs;
     private final Map<String, Object> consumerConfigs;
     private final Callback<ConsumerRecord<K, V>> consumedCallback;
@@ -130,11 +134,13 @@ public class KafkaBasedLog<K, V> {
         List<TopicPartition> partitions = new ArrayList<>();
 
         // We expect that the topics will have been created either manually by the user or automatically by the herder
-        List<PartitionInfo> partitionInfos = null;
-        long started = time.milliseconds();
-        while (partitionInfos == null && time.milliseconds() - started < CREATE_TOPIC_TIMEOUT_MS) {
+        List<PartitionInfo> partitionInfos = consumer.partitionsFor(topic);
+        long started = time.nanoseconds();
+        long sleepMs = 100;
+        while (partitionInfos == null && time.nanoseconds() - started < CREATE_TOPIC_TIMEOUT_NS) {
+            time.sleep(sleepMs);
+            sleepMs = Math.min(2 * sleepMs, MAX_SLEEP_MS);
             partitionInfos = consumer.partitionsFor(topic);
-            Utils.sleep(Math.min(time.milliseconds() - started, 1000));
         }
         if (partitionInfos == null)
             throw new ConnectException("Could not look up partition metadata for offset backing store topic in" +
@@ -143,7 +149,12 @@ public class KafkaBasedLog<K, V> {
 
         for (PartitionInfo partition : partitionInfos)
             partitions.add(new TopicPartition(partition.topic(), partition.partition()));
+        partitionCount = partitions.size();
         consumer.assign(partitions);
+
+        // Always consume from the beginning of all partitions. Necessary to ensure that we don't use committed offsets
+        // when a 'group.id' is specified (if offsets happen to have been committed unexpectedly).
+        consumer.seekToBeginning(partitions);
 
         readToLogEnd();
 
@@ -232,6 +243,9 @@ public class KafkaBasedLog<K, V> {
         producer.send(new ProducerRecord<>(topic, key, value), callback);
     }
 
+    public int partitionCount() {
+        return partitionCount;
+    }
 
     private Producer<K, V> createProducer() {
         // Always require producer acks to all to ensure durable writes
@@ -253,7 +267,7 @@ public class KafkaBasedLog<K, V> {
 
     private void poll(long timeoutMs) {
         try {
-            ConsumerRecords<K, V> records = consumer.poll(timeoutMs);
+            ConsumerRecords<K, V> records = consumer.poll(Duration.ofMillis(timeoutMs));
             for (ConsumerRecord<K, V> record : records)
                 consumedCallback.onCompletion(null, record);
         } catch (WakeupException e) {
@@ -275,9 +289,15 @@ public class KafkaBasedLog<K, V> {
             Iterator<Map.Entry<TopicPartition, Long>> it = endOffsets.entrySet().iterator();
             while (it.hasNext()) {
                 Map.Entry<TopicPartition, Long> entry = it.next();
-                if (consumer.position(entry.getKey()) >= entry.getValue())
+                TopicPartition topicPartition = entry.getKey();
+                long endOffset = entry.getValue();
+                long lastConsumedOffset = consumer.position(topicPartition);
+                if (lastConsumedOffset >= endOffset) {
+                    log.trace("Read to end offset {} for {}", endOffset, topicPartition);
                     it.remove();
-                else {
+                } else {
+                    log.trace("Behind end offset {} for {}; last-read offset is {}",
+                            endOffset, topicPartition, lastConsumedOffset);
                     poll(Integer.MAX_VALUE);
                     break;
                 }
@@ -307,6 +327,10 @@ public class KafkaBasedLog<K, V> {
                         try {
                             readToLogEnd();
                             log.trace("Finished read to end log for topic {}", topic);
+                        } catch (TimeoutException e) {
+                            log.warn("Timeout while reading log to end for topic '{}'. Retrying automatically. " +
+                                "This may occur when brokers are unavailable or unreachable. Reason: {}", topic, e.getMessage());
+                            continue;
                         } catch (WakeupException e) {
                             // Either received another get() call and need to retry reading to end of log or stop() was
                             // called. Both are handled by restarting this loop.

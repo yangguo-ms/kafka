@@ -17,11 +17,12 @@
 
 package org.apache.kafka.common.requests;
 
+import org.apache.kafka.common.config.ConfigResource;
 import org.apache.kafka.common.protocol.ApiKeys;
+import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.protocol.types.ArrayOf;
 import org.apache.kafka.common.protocol.types.Field;
 import org.apache.kafka.common.protocol.types.Schema;
-import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.protocol.types.Struct;
 
 import java.nio.ByteBuffer;
@@ -31,6 +32,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import static org.apache.kafka.common.protocol.CommonFields.ERROR_CODE;
 import static org.apache.kafka.common.protocol.CommonFields.ERROR_MESSAGE;
@@ -54,6 +56,8 @@ public class DescribeConfigsResponse extends AbstractResponse {
     private static final String IS_SENSITIVE_KEY_NAME = "is_sensitive";
     private static final String IS_DEFAULT_KEY_NAME = "is_default";
     private static final String READ_ONLY_KEY_NAME = "read_only";
+    private static final String CONFIG_TYPE_KEY_NAME = "config_type";
+    private static final String CONFIG_DOCUMENTATION_KEY_NAME = "config_documentation";
 
     private static final String CONFIG_SYNONYMS_KEY_NAME = "config_synonyms";
     private static final String CONFIG_SOURCE_KEY_NAME = "config_source";
@@ -74,9 +78,19 @@ public class DescribeConfigsResponse extends AbstractResponse {
             new Field(CONFIG_NAME_KEY_NAME, STRING),
             new Field(CONFIG_VALUE_KEY_NAME, NULLABLE_STRING),
             new Field(READ_ONLY_KEY_NAME, BOOLEAN),
-            new Field(IS_DEFAULT_KEY_NAME, BOOLEAN),
+            new Field(CONFIG_SOURCE_KEY_NAME, INT8),
             new Field(IS_SENSITIVE_KEY_NAME, BOOLEAN),
             new Field(CONFIG_SYNONYMS_KEY_NAME, new ArrayOf(DESCRIBE_CONFIGS_RESPONSE_SYNONYM_V1)));
+
+    private static final Schema DESCRIBE_CONFIGS_RESPONSE_ENTRY_V3 = new Schema(
+            new Field(CONFIG_NAME_KEY_NAME, STRING),
+            new Field(CONFIG_VALUE_KEY_NAME, NULLABLE_STRING),
+            new Field(READ_ONLY_KEY_NAME, BOOLEAN),
+            new Field(CONFIG_SOURCE_KEY_NAME, INT8),
+            new Field(IS_SENSITIVE_KEY_NAME, BOOLEAN),
+            new Field(CONFIG_SYNONYMS_KEY_NAME, new ArrayOf(DESCRIBE_CONFIGS_RESPONSE_SYNONYM_V1)),
+            new Field(CONFIG_TYPE_KEY_NAME, INT8),
+            new Field(CONFIG_DOCUMENTATION_KEY_NAME, NULLABLE_STRING));
 
     private static final Schema DESCRIBE_CONFIGS_RESPONSE_ENTITY_V0 = new Schema(
             ERROR_CODE,
@@ -92,6 +106,13 @@ public class DescribeConfigsResponse extends AbstractResponse {
             new Field(RESOURCE_NAME_KEY_NAME, STRING),
             new Field(CONFIG_ENTRIES_KEY_NAME, new ArrayOf(DESCRIBE_CONFIGS_RESPONSE_ENTRY_V1)));
 
+    private static final Schema DESCRIBE_CONFIGS_RESPONSE_ENTITY_V3 = new Schema(
+            ERROR_CODE,
+            ERROR_MESSAGE,
+            new Field(RESOURCE_TYPE_KEY_NAME, INT8),
+            new Field(RESOURCE_NAME_KEY_NAME, STRING),
+            new Field(CONFIG_ENTRIES_KEY_NAME, new ArrayOf(DESCRIBE_CONFIGS_RESPONSE_ENTRY_V3)));
+
     private static final Schema DESCRIBE_CONFIGS_RESPONSE_V0 = new Schema(
             THROTTLE_TIME_MS,
             new Field(RESOURCES_KEY_NAME, new ArrayOf(DESCRIBE_CONFIGS_RESPONSE_ENTITY_V0)));
@@ -100,8 +121,22 @@ public class DescribeConfigsResponse extends AbstractResponse {
             THROTTLE_TIME_MS,
             new Field(RESOURCES_KEY_NAME, new ArrayOf(DESCRIBE_CONFIGS_RESPONSE_ENTITY_V1)));
 
+    private static final Schema DESCRIBE_CONFIGS_RESPONSE_V3 = new Schema(
+            THROTTLE_TIME_MS,
+            new Field(RESOURCES_KEY_NAME, new ArrayOf(DESCRIBE_CONFIGS_RESPONSE_ENTITY_V3)));
+
+    /**
+     * The version number is bumped to indicate that on quota violation brokers send out responses before throttling.
+     */
+    private static final Schema DESCRIBE_CONFIGS_RESPONSE_V2 = DESCRIBE_CONFIGS_RESPONSE_V1;
+
     public static Schema[] schemaVersions() {
-        return new Schema[]{DESCRIBE_CONFIGS_RESPONSE_V0, DESCRIBE_CONFIGS_RESPONSE_V1};
+        return new Schema[]{
+            DESCRIBE_CONFIGS_RESPONSE_V0,
+            DESCRIBE_CONFIGS_RESPONSE_V1,
+            DESCRIBE_CONFIGS_RESPONSE_V2,
+            DESCRIBE_CONFIGS_RESPONSE_V3
+        };
     }
 
     public static class Config {
@@ -109,8 +144,8 @@ public class DescribeConfigsResponse extends AbstractResponse {
         private final Collection<ConfigEntry> entries;
 
         public Config(ApiError error, Collection<ConfigEntry> entries) {
-            this.error = error;
-            this.entries = entries;
+            this.error = Objects.requireNonNull(error, "error");
+            this.entries = Objects.requireNonNull(entries, "entries");
         }
 
         public ApiError error() {
@@ -129,16 +164,25 @@ public class DescribeConfigsResponse extends AbstractResponse {
         private final ConfigSource source;
         private final boolean readOnly;
         private final Collection<ConfigSynonym> synonyms;
+        private final ConfigType type;
+        private final String documentation;
 
         public ConfigEntry(String name, String value, ConfigSource source, boolean isSensitive, boolean readOnly,
-                           Collection<ConfigSynonym> synonyms) {
+            Collection<ConfigSynonym> synonyms) {
+            this(name, value, source, isSensitive, readOnly, synonyms, ConfigType.UNKNOWN, null);
+        }
 
-            this.name = name;
+        public ConfigEntry(String name, String value, ConfigSource source, boolean isSensitive, boolean readOnly,
+                           Collection<ConfigSynonym> synonyms, ConfigType type, String documentation) {
+
+            this.name = Objects.requireNonNull(name, "name");
             this.value = value;
-            this.source = source;
+            this.source = Objects.requireNonNull(source, "source");
             this.isSensitive = isSensitive;
             this.readOnly = readOnly;
-            this.synonyms = synonyms;
+            this.synonyms = Objects.requireNonNull(synonyms, "synonyms");
+            this.type = type;
+            this.documentation = documentation;
         }
 
         public String name() {
@@ -164,6 +208,14 @@ public class DescribeConfigsResponse extends AbstractResponse {
         public Collection<ConfigSynonym> synonyms() {
             return synonyms;
         }
+
+        public ConfigType type() {
+            return type;
+        }
+
+        public String documentation() {
+            return documentation;
+        }
     }
 
     public enum ConfigSource {
@@ -172,7 +224,8 @@ public class DescribeConfigsResponse extends AbstractResponse {
         DYNAMIC_BROKER_CONFIG((byte) 2),
         DYNAMIC_DEFAULT_BROKER_CONFIG((byte) 3),
         STATIC_BROKER_CONFIG((byte) 4),
-        DEFAULT_CONFIG((byte) 5);
+        DEFAULT_CONFIG((byte) 5),
+        DYNAMIC_BROKER_LOGGER_CONFIG((byte) 6);
 
         final byte id;
         private static final ConfigSource[] VALUES = values();
@@ -190,15 +243,43 @@ public class DescribeConfigsResponse extends AbstractResponse {
         }
     }
 
+    public enum ConfigType {
+        UNKNOWN((byte) 0),
+        BOOLEAN((byte) 1),
+        STRING((byte) 2),
+        INT((byte) 3),
+        SHORT((byte) 4),
+        LONG((byte) 5),
+        DOUBLE((byte) 6),
+        LIST((byte) 7),
+        CLASS((byte) 8),
+        PASSWORD((byte) 9);
+
+        final byte id;
+        private static final ConfigType[] VALUES = values();
+
+        ConfigType(byte id) {
+            this.id = id;
+        }
+
+        public static ConfigType forId(byte id) {
+            if (id < 0)
+                throw new IllegalArgumentException("id should be positive, id: " + id);
+            if (id >= VALUES.length)
+                return UNKNOWN;
+            return VALUES[id];
+        }
+    }
+
     public static class ConfigSynonym {
         private final String name;
         private final String value;
         private final ConfigSource source;
 
         public ConfigSynonym(String name, String value, ConfigSource source) {
-            this.name = name;
+            this.name = Objects.requireNonNull(name, "name");
             this.value = value;
-            this.source = source;
+            this.source = Objects.requireNonNull(source, "source");
         }
 
         public String name() {
@@ -214,11 +295,11 @@ public class DescribeConfigsResponse extends AbstractResponse {
 
 
     private final int throttleTimeMs;
-    private final Map<Resource, Config> configs;
+    private final Map<ConfigResource, Config> configs;
 
-    public DescribeConfigsResponse(int throttleTimeMs, Map<Resource, Config> configs) {
+    public DescribeConfigsResponse(int throttleTimeMs, Map<ConfigResource, Config> configs) {
         this.throttleTimeMs = throttleTimeMs;
-        this.configs = configs;
+        this.configs = Objects.requireNonNull(configs, "configs");
     }
 
     public DescribeConfigsResponse(Struct struct) {
@@ -229,9 +310,9 @@ public class DescribeConfigsResponse extends AbstractResponse {
             Struct resourceStruct = (Struct) resourceObj;
 
             ApiError error = new ApiError(resourceStruct);
-            ResourceType resourceType = ResourceType.forId(resourceStruct.getByte(RESOURCE_TYPE_KEY_NAME));
+            ConfigResource.Type resourceType = ConfigResource.Type.forId(resourceStruct.getByte(RESOURCE_TYPE_KEY_NAME));
             String resourceName = resourceStruct.getString(RESOURCE_NAME_KEY_NAME);
-            Resource resource = new Resource(resourceType, resourceName);
+            ConfigResource resource = new ConfigResource(resourceType, resourceName);
 
             Object[] configEntriesArray = resourceStruct.getArray(CONFIG_ENTRIES_KEY_NAME);
             List<ConfigEntry> configEntries = new ArrayList<>(configEntriesArray.length);
@@ -240,6 +321,14 @@ public class DescribeConfigsResponse extends AbstractResponse {
                 String configName = configEntriesStruct.getString(CONFIG_NAME_KEY_NAME);
                 String configValue = configEntriesStruct.getString(CONFIG_VALUE_KEY_NAME);
                 boolean isSensitive = configEntriesStruct.getBoolean(IS_SENSITIVE_KEY_NAME);
+                ConfigType type = ConfigType.UNKNOWN;
+                if (configEntriesStruct.hasField(CONFIG_TYPE_KEY_NAME)) {
+                    type = ConfigType.forId(configEntriesStruct.getByte(CONFIG_TYPE_KEY_NAME));
+                }
+                String documentation = null;
+                if (configEntriesStruct.hasField(CONFIG_DOCUMENTATION_KEY_NAME)) {
+                    documentation = configEntriesStruct.getString(CONFIG_DOCUMENTATION_KEY_NAME);
+                }
                 ConfigSource configSource;
                 if (configEntriesStruct.hasField(CONFIG_SOURCE_KEY_NAME))
                     configSource = ConfigSource.forId(configEntriesStruct.getByte(CONFIG_SOURCE_KEY_NAME));
@@ -273,23 +362,25 @@ public class DescribeConfigsResponse extends AbstractResponse {
                         ConfigSource source = ConfigSource.forId(synonymStruct.getByte(CONFIG_SOURCE_KEY_NAME));
                         synonyms.add(new ConfigSynonym(synonymConfigName, synonymConfigValue, source));
                     }
-                } else
+                } else {
                     synonyms = Collections.emptyList();
-                configEntries.add(new ConfigEntry(configName, configValue, configSource, isSensitive, readOnly, synonyms));
+                }
+                configEntries.add(new ConfigEntry(configName, configValue, configSource, isSensitive, readOnly, synonyms, type, documentation));
             }
             Config config = new Config(error, configEntries);
             configs.put(resource, config);
         }
     }
 
-    public Map<Resource, Config> configs() {
+    public Map<ConfigResource, Config> configs() {
         return configs;
     }
 
-    public Config config(Resource resource) {
+    public Config config(ConfigResource resource) {
         return configs.get(resource);
     }
 
+    @Override
     public int throttleTimeMs() {
         return throttleTimeMs;
     }
@@ -297,8 +388,9 @@ public class DescribeConfigsResponse extends AbstractResponse {
     @Override
     public Map<Errors, Integer> errorCounts() {
         Map<Errors, Integer> errorCounts = new HashMap<>();
-        for (Config response : configs.values())
-            updateErrorCounts(errorCounts, response.error.error());
+        configs.values().forEach(response ->
+            updateErrorCounts(errorCounts, response.error.error())
+        );
         return errorCounts;
     }
 
@@ -307,10 +399,10 @@ public class DescribeConfigsResponse extends AbstractResponse {
         Struct struct = new Struct(ApiKeys.DESCRIBE_CONFIGS.responseSchema(version));
         struct.set(THROTTLE_TIME_MS, throttleTimeMs);
         List<Struct> resourceStructs = new ArrayList<>(configs.size());
-        for (Map.Entry<Resource, Config> entry : configs.entrySet()) {
+        for (Map.Entry<ConfigResource, Config> entry : configs.entrySet()) {
             Struct resourceStruct = struct.instance(RESOURCES_KEY_NAME);
 
-            Resource resource = entry.getKey();
+            ConfigResource resource = entry.getKey();
             resourceStruct.set(RESOURCE_TYPE_KEY_NAME, resource.type().id());
             resourceStruct.set(RESOURCE_NAME_KEY_NAME, resource.name());
 
@@ -326,6 +418,10 @@ public class DescribeConfigsResponse extends AbstractResponse {
                 configEntriesStruct.setIfExists(CONFIG_SOURCE_KEY_NAME, configEntry.source.id);
                 configEntriesStruct.setIfExists(IS_DEFAULT_KEY_NAME, configEntry.source == ConfigSource.DEFAULT_CONFIG);
                 configEntriesStruct.set(READ_ONLY_KEY_NAME, configEntry.readOnly);
+                if (configEntriesStruct.hasField(CONFIG_TYPE_KEY_NAME) && configEntry.type != null) {
+                    configEntriesStruct.set(CONFIG_TYPE_KEY_NAME, configEntry.type.id);
+                }
+                configEntriesStruct.setIfExists(CONFIG_DOCUMENTATION_KEY_NAME, configEntry.documentation);
                 configEntryStructs.add(configEntriesStruct);
                 if (configEntriesStruct.hasField(CONFIG_SYNONYMS_KEY_NAME)) {
                     List<Struct> configSynonymStructs = new ArrayList<>(configEntry.synonyms.size());
@@ -340,7 +436,7 @@ public class DescribeConfigsResponse extends AbstractResponse {
                 }
             }
             resourceStruct.set(CONFIG_ENTRIES_KEY_NAME, configEntryStructs.toArray(new Struct[0]));
-            
+
             resourceStructs.add(resourceStruct);
         }
         struct.set(RESOURCES_KEY_NAME, resourceStructs.toArray(new Struct[0]));
@@ -351,4 +447,8 @@ public class DescribeConfigsResponse extends AbstractResponse {
         return new DescribeConfigsResponse(ApiKeys.DESCRIBE_CONFIGS.parseResponse(version, buffer));
     }
 
+    @Override
+    public boolean shouldClientThrottle(short version) {
+        return version >= 2;
+    }
 }

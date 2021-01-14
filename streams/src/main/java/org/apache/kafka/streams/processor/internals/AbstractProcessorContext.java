@@ -16,39 +16,41 @@
  */
 package org.apache.kafka.streams.processor.internals;
 
+import org.apache.kafka.common.header.Headers;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.streams.StreamsConfig;
-import org.apache.kafka.streams.StreamsMetrics;
 import org.apache.kafka.streams.processor.StateRestoreCallback;
 import org.apache.kafka.streams.processor.StateStore;
 import org.apache.kafka.streams.processor.TaskId;
+import org.apache.kafka.streams.processor.internals.Task.TaskType;
+import org.apache.kafka.streams.processor.internals.metrics.StreamsMetricsImpl;
 import org.apache.kafka.streams.state.internals.ThreadCache;
 
 import java.io.File;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-
 public abstract class AbstractProcessorContext implements InternalProcessorContext {
 
-    static final String NONEXIST_TOPIC = "__null_topic__";
+    public static final String NONEXIST_TOPIC = "__null_topic__";
     private final TaskId taskId;
     private final String applicationId;
     private final StreamsConfig config;
-    private final StreamsMetrics metrics;
-    private final Serde keySerde;
-    private final ThreadCache cache;
-    private final Serde valueSerde;
+    private final StreamsMetricsImpl metrics;
+    private final Serde<?> keySerde;
+    private final Serde<?> valueSerde;
     private boolean initialized;
-    protected RecordContext recordContext;
-    protected ProcessorNode currentNode;
+    protected ProcessorRecordContext recordContext;
+    protected ProcessorNode<?, ?> currentNode;
+    private long currentSystemTimeMs;
+
     final StateManager stateManager;
+    protected ThreadCache cache;
 
     public AbstractProcessorContext(final TaskId taskId,
                                     final StreamsConfig config,
-                                    final StreamsMetrics metrics,
+                                    final StreamsMetricsImpl metrics,
                                     final StateManager stateManager,
                                     final ThreadCache cache) {
         this.taskId = taskId;
@@ -59,6 +61,16 @@ public abstract class AbstractProcessorContext implements InternalProcessorConte
         valueSerde = config.defaultValueSerde();
         keySerde = config.defaultKeySerde();
         this.cache = cache;
+    }
+
+    @Override
+    public void setSystemTimeMs(final long timeMs) {
+        currentSystemTimeMs = timeMs;
+    }
+
+    @Override
+    public long currentSystemTimeMs() {
+        return currentSystemTimeMs;
     }
 
     @Override
@@ -87,19 +99,18 @@ public abstract class AbstractProcessorContext implements InternalProcessorConte
     }
 
     @Override
-    public StreamsMetrics metrics() {
+    public StreamsMetricsImpl metrics() {
         return metrics;
     }
 
     @Override
     public void register(final StateStore store,
-                         final boolean deprecatedAndIgnoredLoggingEnabled,
                          final StateRestoreCallback stateRestoreCallback) {
         if (initialized) {
             throw new IllegalStateException("Can only create state stores during initialization.");
         }
         Objects.requireNonNull(store, "store must not be null");
-        stateManager.register(store, stateRestoreCallback);
+        stateManager.registerStore(store, stateRestoreCallback);
     }
 
     /**
@@ -140,8 +151,15 @@ public abstract class AbstractProcessorContext implements InternalProcessorConte
         if (recordContext == null) {
             throw new IllegalStateException("This should not happen as offset() should only be called while a record is processed");
         }
-
         return recordContext.offset();
+    }
+
+    @Override
+    public Headers headers() {
+        if (recordContext == null) {
+            throw new IllegalStateException("This should not happen as headers() should only be called while a record is processed");
+        }
+        return recordContext.headers();
     }
 
     /**
@@ -152,7 +170,6 @@ public abstract class AbstractProcessorContext implements InternalProcessorConte
         if (recordContext == null) {
             throw new IllegalStateException("This should not happen as timestamp() should only be called while a record is processed");
         }
-
         return recordContext.timestamp();
     }
 
@@ -164,57 +181,48 @@ public abstract class AbstractProcessorContext implements InternalProcessorConte
         return combined;
     }
 
-    @SuppressWarnings("unchecked")
-    @Override
-    public <K, V> void forward(final K key, final V value) {
-        final ProcessorNode previousNode = currentNode();
-        try {
-            for (final ProcessorNode child : (List<ProcessorNode>) currentNode().children()) {
-                setCurrentNode(child);
-                child.process(key, value);
-            }
-        } finally {
-            setCurrentNode(previousNode);
-        }
-    }
-
     @Override
     public Map<String, Object> appConfigsWithPrefix(final String prefix) {
         return config.originalsWithPrefix(prefix);
     }
 
     @Override
-    public void setRecordContext(final RecordContext recordContext) {
+    public void setRecordContext(final ProcessorRecordContext recordContext) {
         this.recordContext = recordContext;
     }
 
     @Override
-    public RecordContext recordContext() {
+    public ProcessorRecordContext recordContext() {
         return recordContext;
     }
 
     @Override
-    public void setCurrentNode(final ProcessorNode currentNode) {
+    public void setCurrentNode(final ProcessorNode<?, ?> currentNode) {
         this.currentNode = currentNode;
     }
 
     @Override
-    public ProcessorNode currentNode() {
+    public ProcessorNode<?, ?> currentNode() {
         return currentNode;
     }
 
     @Override
-    public ThreadCache getCache() {
+    public ThreadCache cache() {
         return cache;
     }
 
     @Override
-    public void initialized() {
+    public void initialize() {
         initialized = true;
     }
 
     @Override
     public void uninitialize() {
         initialized = false;
+    }
+
+    @Override
+    public TaskType taskType() {
+        return stateManager.taskType();
     }
 }
