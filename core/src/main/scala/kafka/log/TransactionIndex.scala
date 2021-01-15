@@ -107,6 +107,14 @@ class TransactionIndex(val startOffset: Long, @volatile private var _file: File)
     maybeChannel = None
   }
 
+  /**
+   * Re-opens the channel if it not already open.
+   */
+  def reopenHandler(): Unit = {
+    if(maybeChannel == None)
+      openChannel()
+  }
+
   def renameTo(f: File): Unit = {
     try {
       if (file.exists)

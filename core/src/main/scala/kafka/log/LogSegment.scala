@@ -605,12 +605,25 @@ class LogSegment private[log] (val log: FileRecords,
   }
 
   /**
+   * Re-Open the file handlers
+   */
+  def reopenHandlers(): Unit =  {
+    offsetIndex.reopenHandler()
+    timeIndex.reopenHandler()
+    log.reopenHandler()
+    txnIndex.reopenHandler()
+  }
+
+  /**
    * Delete this log segment from the filesystem.
    */
   def deleteIfExists(): Unit = {
     def delete(delete: () => Boolean, fileType: String, file: File, logIfMissing: Boolean): Unit = {
       try {
-        if (delete())
+        val status = CoreUtils.retry(3, 200) {
+          delete()
+        }
+        if (status)
           info(s"Deleted $fileType ${file.getAbsolutePath}.")
         else if (logIfMissing)
           info(s"Failed to delete $fileType ${file.getAbsolutePath} because it does not exist.")

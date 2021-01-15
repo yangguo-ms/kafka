@@ -49,7 +49,7 @@ public class FileRecords extends AbstractRecords implements Closeable {
 
     // mutable state
     private final AtomicInteger size;
-    private final FileChannel channel;
+    private volatile FileChannel channel;
     private volatile File file;
 
     /**
@@ -173,7 +173,8 @@ public class FileRecords extends AbstractRecords implements Closeable {
      * Commit all written data to the physical disk
      */
     public void flush() throws IOException {
-        channel.force(true);
+        if(channel.isOpen())
+            channel.force(true);
     }
 
     /**
@@ -190,6 +191,15 @@ public class FileRecords extends AbstractRecords implements Closeable {
      */
     public void closeHandlers() throws IOException {
         channel.close();
+    }
+
+    /**
+     * Re-opens the channel if it not already open.
+     */
+    public void reopenHandler() throws IOException {
+        if(!channel.isOpen()) {
+            channel = openChannel(this.file, true, true, 0, false);
+        }
     }
 
     /**

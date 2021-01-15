@@ -22,7 +22,6 @@ import java.util.concurrent.{CountDownLatch, Executors, TimeUnit}
 
 import kafka.log.{Log, LogConfig, LogManager, ProducerStateManager}
 import kafka.server.{BrokerTopicStats, LogDirFailureChannel}
-import kafka.utils.TestUtils.retry
 import org.junit.Assert._
 import org.junit.{After, Before, Test}
 
@@ -81,7 +80,7 @@ class SchedulerTest {
   @Test
   def testNonPeriodicTask(): Unit = {
     scheduler.schedule("test", counter1.getAndIncrement _, delay = 0)
-    retry(30000) {
+    TestUtils.retry(30000) {
       assertEquals(counter1.get, 1)
     }
     Thread.sleep(5)
@@ -91,7 +90,7 @@ class SchedulerTest {
   @Test
   def testPeriodicTask(): Unit = {
     scheduler.schedule("test", counter1.getAndIncrement _, delay = 0, period = 5)
-    retry(30000){
+    TestUtils.retry(30000){
       assertTrue("Should count to 20", counter1.get >= 20)
     }
   }

@@ -107,7 +107,9 @@ abstract class AbstractIndex(@volatile private var _file: File, val baseOffset: 
   protected val lock = new ReentrantLock
 
   @volatile
-  protected var mmap: MappedByteBuffer = {
+  protected var mmap: MappedByteBuffer = initMemoryMap()
+
+  protected def initMemoryMap(): MappedByteBuffer = {
     val newlyCreated = file.createNewFile()
     val raf = if (writable) new RandomAccessFile(file, "rw") else new RandomAccessFile(file, "r")
     try {
@@ -135,6 +137,16 @@ abstract class AbstractIndex(@volatile private var _file: File, val baseOffset: 
       idx
     } finally {
       CoreUtils.swallow(raf.close(), AbstractIndex)
+    }
+  }
+
+  /**
+   * Re-opens the memory map file
+   */
+  def reopenHandler(): Unit = {
+    inLock(lock) {
+      if(mmap == null)
+        mmap = initMemoryMap()
     }
   }
 
@@ -187,7 +199,9 @@ abstract class AbstractIndex(@volatile private var _file: File, val baseOffset: 
           /* Windows or z/OS won't let us modify the file length while the file is mmapped :-( */
           if (OperatingSystem.IS_WINDOWS || OperatingSystem.IS_ZOS)
             safeForceUnmap()
-          raf.setLength(roundedNewSize)
+          CoreUtils.retry(3, 200) {
+            raf.setLength(roundedNewSize)
+          }
           _length = roundedNewSize
           mmap = raf.getChannel().map(FileChannel.MapMode.READ_WRITE, 0, roundedNewSize)
           _maxEntries = mmap.limit() / entrySize
@@ -217,7 +231,8 @@ abstract class AbstractIndex(@volatile private var _file: File, val baseOffset: 
    */
   def flush(): Unit = {
     inLock(lock) {
-      mmap.force()
+      if(mmap != null)
+        mmap.force()
     }
   }
 
@@ -312,7 +327,7 @@ abstract class AbstractIndex(@volatile private var _file: File, val baseOffset: 
 
   protected def safeForceUnmap(): Unit = {
     if (mmap != null) {
-      try forceUnmap()
+      try if(mmap != null) forceUnmap()
       catch {
         case t: Throwable => error(s"Error unmapping index $file", t)
       }

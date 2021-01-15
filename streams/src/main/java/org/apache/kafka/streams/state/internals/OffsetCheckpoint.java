@@ -109,6 +109,8 @@ public class OffsetCheckpoint {
 
                 writer.flush();
                 fileOutputStream.getFD().sync();
+            } finally {
+                Utils.closeQuietly(fileOutputStream, temp.getName());
             }
 
             LOG.trace("Swapping tmp checkpoint file {} {}", temp.toPath(), file.toPath());
