@@ -19,7 +19,7 @@ class AzPubSubAclCommandTest {
 
   @Test
   def testOpts(): Unit = {
-    var args = Array("--bootstrap-server", "localhost:9092", "--list", "--principal", "User:Alice", "--topic", "test", "--pc")
+    val args = Array("--bootstrap-server", "localhost:9092", "--list", "--principal", "User:Alice", "--topic", "test", "--pc")
     val opts = new AzPubSubAclCommandOptions(args)
 
     assertTrue(opts.options.has(opts.bootstrapServerOpt))
@@ -31,7 +31,7 @@ class AzPubSubAclCommandTest {
 
   @Test
   def testPrintAcls(): Unit = {
-    var args = Array("--bootstrap-server" , "localhost:9092", "--list", "--topic", "test", "--pc")
+    val args = Array("--bootstrap-server" , "localhost:9092", "--list", "--topic", "test", "--pc")
     val opts = new AzPubSubAclCommandOptions(args)
     val aclCommandService = new AzPubSubAdminClientService(opts)
     val filters = Set(new ResourcePatternFilter(ResourceType.TOPIC, "test", PatternType.LITERAL))
@@ -58,7 +58,7 @@ class AzPubSubAclCommandTest {
 
   @Test
   def testPrintStrayAcls(): Unit = {
-    var args = Array("--bootstrap-server", "localhost:9092", "--list", "--topic", "test", "--topic", "test2", "--pc", "--principal", "User:Alice", "--principal", "User:Bob" )
+    val args = Array("--bootstrap-server", "localhost:9092", "--list", "--topic", "test", "--topic", "test2", "--pc", "--principal", "User:Alice", "--principal", "User:Bob" )
     val opts = new AzPubSubAclCommandOptions(args)
     val aclCommandService = new AzPubSubAdminClientService(opts)
     val filters = Set(new ResourcePatternFilter(ResourceType.TOPIC, "test", PatternType.LITERAL),

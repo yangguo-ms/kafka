@@ -2,18 +2,17 @@ package com.microsoft.azpubsub.tools
 
 import java.io._
 import java.nio.ByteBuffer
-
 import kafka.log._
 import kafka.utils._
 import org.apache.kafka.common.record._
 
-import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.jdk.CollectionConverters._
 import scala.util.control.Breaks
 
 object CompressionAnalyzer {
 
-  def main(args: Array[String]) {
+  def main(args: Array[String]): Unit = {
     val opts = new DumpLogSegmentsOptions(args)
     CommandLineUtils.printHelpAndExitIfNeeded(opts, "This tool analyzes the compressibility of a log segment, which is useful for determining the most appropriate compression algorithm for a topic.")
     opts.checkArgs()
@@ -32,7 +31,7 @@ object CompressionAnalyzer {
     }
   }
 
-  private def compressBatch(batch: RecordBatch, compressionType: CompressionType) : Int = {
+  private def compressBatch(batch: RecordBatch, compressionType: CompressionType): Int = {
     val buffer = ByteBuffer.allocate(128)
     val builder = MemoryRecords.builder(buffer, batch.magic(), compressionType, batch.timestampType(), batch.baseOffset())
     for (record <- batch.asScala) {
@@ -55,7 +54,7 @@ object CompressionAnalyzer {
     }
   }
 
-  private def analyzeLog(file: File, verbose: Boolean, maxBatchCount: Int) {
+  private def analyzeLog(file: File, verbose: Boolean, maxBatchCount: Int): Unit = {
     var validBytes = 0L
     var uncompressedBytes = 0L
     val fileRecords = FileRecords.open(file, false)

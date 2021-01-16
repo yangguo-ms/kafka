@@ -2,15 +2,11 @@ package com.microsoft.azpubsub.security.auth
 
 import java.util
 import java.util.concurrent._
-
-import scala.collection.JavaConverters.asScalaSetConverter
-
+import scala.jdk.CollectionConverters._
 import com.typesafe.scalalogging.Logger
 import com.yammer.metrics.core.{Meter, MetricName}
-
 import org.apache.kafka.common.security.auth.KafkaPrincipal
 import org.apache.kafka.common.utils.Utils
-
 import kafka.metrics.KafkaMetricsGroup
 import kafka.network.RequestChannel.Session
 import kafka.security.auth.Operation
@@ -18,9 +14,12 @@ import kafka.security.auth.{Resource, Topic}
 import kafka.security.auth.SimpleAclAuthorizer
 import kafka.utils.Logging
 
+import scala.annotation.nowarn
+
 /*
  * AzPubSub ACL Authorizer to handle the certificate & role based principal type
  */
+@nowarn("cat=deprecation")
 class AzPubSubAclAuthorizer extends SimpleAclAuthorizer with Logging with KafkaMetricsGroup {
   private[security] val authorizerLogger = Logger("kafka.authorizer.logger")
 

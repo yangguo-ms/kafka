@@ -7,7 +7,7 @@ import org.apache.kafka.common.resource.{ResourcePattern, ResourcePatternFilter,
 import org.apache.kafka.common.security.auth.KafkaPrincipal
 import org.apache.kafka.common.utils.Utils
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 
 object AzPubSubAclCommand extends Logging {
@@ -54,10 +54,10 @@ class AzPubSubAdminClientService(opts: AzPubSubAclCommandOptions) extends AdminC
       outputAsJson(producerConsumerAclMap)
     }
     else {
-      val allPrincipalsFilteredResourceToAcls = resourceToAcls.mapValues(acls =>
+      val allPrincipalsFilteredResourceToAcls = resourceToAcls.view.mapValues(acls =>
         acls.filterNot(acl => listPrincipals.forall(
-          principal => !principal.toString.equals(acl.principal)))).filter(entry => entry._2.nonEmpty)
-      var producerConsumerAclMap = aclToProducerConsumerMapping(allPrincipalsFilteredResourceToAcls)
+          principal => !principal.toString.equals(acl.principal)))).filter(entry => entry._2.nonEmpty).toMap
+      val producerConsumerAclMap = aclToProducerConsumerMapping(allPrincipalsFilteredResourceToAcls)
       outputAsJson(producerConsumerAclMap)
     }
   }
@@ -80,9 +80,9 @@ class AzPubSubAdminClientService(opts: AzPubSubAclCommandOptions) extends AdminC
   }
 
   def GetProducerAclOperations(): Set[AclOperation] = {
-    var dummyArgs = Array[String]("--bootstrap-server", "localhost:9092", "--add", "--allow-principal", "User:Bob", "--producer", "--topic", "Test-topic")
-    var dummyOpt = new AclCommandOptions(dummyArgs)
-    var resourceMap = AclCommand.getProducerResourceFilterToAcls(dummyOpt)
+    val dummyArgs = Array[String]("--bootstrap-server", "localhost:9092", "--add", "--allow-principal", "User:Bob", "--producer", "--topic", "Test-topic")
+    val dummyOpt = new AclCommandOptions(dummyArgs)
+    val resourceMap = AclCommand.getProducerResourceFilterToAcls(dummyOpt)
     for ((key, value) <- resourceMap) {
       if (key.resourceType() == ResourceType.TOPIC) {
         var aclOperationList = Set[AclOperation]()
@@ -94,9 +94,9 @@ class AzPubSubAdminClientService(opts: AzPubSubAclCommandOptions) extends AdminC
   }
 
   def GetConsumerAclOperations(): Set[AclOperation] = {
-    var dummyArgs = Array[String]("--bootstrap-server", "localhost:9092", "--add", "--allow-principal", "User:Bob", "--consumer", "--topic", "Test-topic", "--group", "Test-group")
-    var dummyOpt = new AclCommandOptions(dummyArgs)
-    var resourceMap = AclCommand.getConsumerResourceFilterToAcls(dummyOpt)
+    val dummyArgs = Array[String]("--bootstrap-server", "localhost:9092", "--add", "--allow-principal", "User:Bob", "--consumer", "--topic", "Test-topic", "--group", "Test-group")
+    val dummyOpt = new AclCommandOptions(dummyArgs)
+    val resourceMap = AclCommand.getConsumerResourceFilterToAcls(dummyOpt)
     for ((key, value) <- resourceMap) {
       if (key.resourceType() == ResourceType.TOPIC) {
         var aclOperationList = Set[AclOperation]()
@@ -108,9 +108,9 @@ class AzPubSubAdminClientService(opts: AzPubSubAclCommandOptions) extends AdminC
   }
 
   def GetGroupAclOperations(): Set[AclOperation] = {
-    var dummyArgs = Array[String]("--bootstrap-server", "localhost:9092", "--add", "--allow-principal", "User:Bob", "--consumer", "--topic", "Test-topic", "--group", "Test-group")
-    var dummyOpt = new AclCommandOptions(dummyArgs)
-    var resourceMap = AclCommand.getConsumerResourceFilterToAcls(dummyOpt)
+    val dummyArgs = Array[String]("--bootstrap-server", "localhost:9092", "--add", "--allow-principal", "User:Bob", "--consumer", "--topic", "Test-topic", "--group", "Test-group")
+    val dummyOpt = new AclCommandOptions(dummyArgs)
+    val resourceMap = AclCommand.getConsumerResourceFilterToAcls(dummyOpt)
     for ((key, value) <- resourceMap) {
       if (key.resourceType() == ResourceType.GROUP) {
         var aclOperationList = Set[AclOperation]()
@@ -122,14 +122,14 @@ class AzPubSubAdminClientService(opts: AzPubSubAclCommandOptions) extends AdminC
   }
 
   def aclToProducerConsumerMapping(resourceToAcls:Map[ResourcePattern,Set[AccessControlEntry]]):mutable.Map[ResourcePattern,mutable.Set[AzPubSubAccessControlEntry]] = {
-    var producerConsumerGroupAclMap = mutable.Map[ResourcePattern, mutable.Set[AzPubSubAccessControlEntry]]()
-    var producerAclOperations = GetProducerAclOperations()
-    var consumerAclOperations = GetConsumerAclOperations()
-    var groupAclOperations = GetGroupAclOperations()
+    val producerConsumerGroupAclMap = mutable.Map[ResourcePattern, mutable.Set[AzPubSubAccessControlEntry]]()
+    val producerAclOperations = GetProducerAclOperations()
+    val consumerAclOperations = GetConsumerAclOperations()
+    val groupAclOperations = GetGroupAclOperations()
 
     resourceToAcls.foreach(resource => {
       producerConsumerGroupAclMap += (resource._1 -> mutable.Set[AzPubSubAccessControlEntry]())
-      var principalAclMap = mutable.Map[String,mutable.Set[AccessControlEntry]]()
+      val principalAclMap = mutable.Map[String,mutable.Set[AccessControlEntry]]()
       resource._2.foreach(acl => {
         if (principalAclMap.contains(acl.principal())) {
           principalAclMap(acl.principal()).add(acl)
@@ -140,30 +140,30 @@ class AzPubSubAdminClientService(opts: AzPubSubAclCommandOptions) extends AdminC
       })
       principalAclMap.foreach { case (principal, acls) => {
         var strayAcls = acls
-        var filteredAclOperations = mutable.Set[AclOperation]()
-        var filteredAcls = acls.filter(x => (x.host() == "*" && x.permissionType() == AclPermissionType.ALLOW))
+        val filteredAclOperations = mutable.Set[AclOperation]()
+        val filteredAcls = acls.filter(x => (x.host() == "*" && x.permissionType() == AclPermissionType.ALLOW))
         filteredAcls.foreach(x => filteredAclOperations.add(x.operation()))
         if (resource._1.resourceType() == ResourceType.TOPIC) {
           if (producerAclOperations.subsetOf(filteredAclOperations)) {
             strayAcls = strayAcls.filterNot(x => (x.host() == "*" && x.permissionType() == AclPermissionType.ALLOW && producerAclOperations.contains(x.operation())))
-            var modifiedAcl = new AzPubSubAccessControlEntry(principal, "*", AclOperation.ANY, AclPermissionType.ALLOW, "PRODUCER")
+            val modifiedAcl = new AzPubSubAccessControlEntry(principal, "*", AclOperation.ANY, AclPermissionType.ALLOW, "PRODUCER")
             producerConsumerGroupAclMap(resource._1).add(modifiedAcl)
           }
           if (consumerAclOperations.subsetOf(filteredAclOperations)) {
             strayAcls = strayAcls.filterNot(x => (x.host() == "*" && x.permissionType() == AclPermissionType.ALLOW && consumerAclOperations.contains(x.operation())))
-            var modifiedAcl = new AzPubSubAccessControlEntry(principal, "*", AclOperation.ANY, AclPermissionType.ALLOW, "CONSUMER")
+            val modifiedAcl = new AzPubSubAccessControlEntry(principal, "*", AclOperation.ANY, AclPermissionType.ALLOW, "CONSUMER")
             producerConsumerGroupAclMap(resource._1).add(modifiedAcl)
           }
         }
         else if (resource._1.resourceType() == ResourceType.GROUP) {
           if (groupAclOperations.subsetOf(filteredAclOperations)) {
             strayAcls = strayAcls.filterNot(x => (x.host() == "*" && x.permissionType() == AclPermissionType.ALLOW && groupAclOperations.contains(x.operation())))
-            var modifiedAcl = new AzPubSubAccessControlEntry(principal, "*", AclOperation.ANY, AclPermissionType.ALLOW, "GROUP")
+            val modifiedAcl = new AzPubSubAccessControlEntry(principal, "*", AclOperation.ANY, AclPermissionType.ALLOW, "GROUP")
             producerConsumerGroupAclMap(resource._1).add(modifiedAcl)
           }
         }
         strayAcls.foreach(acl => {
-          var modifiedAcl = new AzPubSubAccessControlEntry(principal, acl.host(), acl.operation(), acl.permissionType(), "NONE")
+          val modifiedAcl = new AzPubSubAccessControlEntry(principal, acl.host(), acl.operation(), acl.permissionType(), "NONE")
           producerConsumerGroupAclMap(resource._1).add(modifiedAcl)
         })
       }}
