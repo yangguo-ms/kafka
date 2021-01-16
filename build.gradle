@@ -911,6 +911,8 @@ project(':core') {
     from(project(':streams:test-utils').configurations.runtime) { into("libs/") }
     from(project(':streams:examples').jar) { into("libs/") }
     from(project(':streams:examples').configurations.runtime) { into("libs/") }
+    from(project(':azpubsub').jar) { into("libs/") }
+    from(project(':azpubsub').configurations.runtime) { into("libs/") }
     duplicatesStrategy 'exclude'
   }
 
@@ -946,6 +948,8 @@ project(':core') {
     from(project(':streams:streams-scala').configurations.runtime) { into("libs/") }
     from(project(':streams:test-utils').jar) { into("libs/") }
     from(project(':streams:test-utils').configurations.runtime) { into("libs/") }
+    from(project(':azpubsub').jar) { into("libs/") }
+    from(project(':azpubsub').configurations.runtime) { into("libs/") }
     from(project.file("$rootDir/repository")) { into "libs/" }
     duplicatesStrategy 'exclude'
 
@@ -984,6 +988,20 @@ project(':core') {
 
   checkstyle {
     configProperties = checkstyleConfigProperties("import-control-core.xml")
+  }
+}
+
+project(':azpubsub') {
+  apply plugin: 'scala'
+
+  archivesBaseName = "kafka-azpubsub"
+
+  dependencies {
+    compile project(':core')
+    compile libs.scalaLibrary
+    compileOnly libs.log4j
+
+    testCompile libs.junit
   }
 }
 
