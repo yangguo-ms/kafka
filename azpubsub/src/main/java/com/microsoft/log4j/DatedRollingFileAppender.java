@@ -16,8 +16,10 @@
  */
 package com.microsoft.log4j;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InterruptedIOException;
+import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -34,6 +36,7 @@ import java.util.regex.Pattern;
 import org.apache.log4j.FileAppender;
 import org.apache.log4j.Layout;
 import org.apache.log4j.helpers.LogLog;
+import org.apache.log4j.helpers.OptionConverter;
 import org.apache.log4j.spi.LoggingEvent;
 import org.apache.log4j.helpers.CountingQuietWriter;
 
@@ -57,11 +60,6 @@ public class DatedRollingFileAppender extends FileAppender {
      *  The default maximum file size is 10MB.
      */
     protected long maxFileSize = 10 * 1024 * 1024;
-
-    /**
-     * The next size we estimate a roll over should occur.
-     */
-    private long nextRolloverSize = 0;
 
     /**
      * The next daily file number we estimate a roll over should occur.
@@ -111,10 +109,10 @@ public class DatedRollingFileAppender extends FileAppender {
     }
 
     /**
-    * Get the maximum size that the output file is allowed to reach
-    * before being rolled over to backup files.
-    */
-    public long getMaximumFileSize() {
+     * Get the maximum size that the output file is allowed to reach
+     * before being rolled over to backup files.
+     */
+    public long getMaxFileSize() {
         return maxFileSize;
     }
 
@@ -127,7 +125,12 @@ public class DatedRollingFileAppender extends FileAppender {
 
     public synchronized void setFile(String fileName, boolean append, boolean bufferedIO, int bufferSize) throws IOException {
         this.originalFileName = fileName;
-        super.setFile(this.originalFileName + sdf.format(new Date()) + "." + fileNumber, append, bufferedIO, bufferSize);
+        String name = this.originalFileName + sdf.format(new Date()) + "." + fileNumber;
+        super.setFile(name, append, bufferedIO, bufferSize);
+        if(append) {
+            File f = new File(name);
+            ((CountingQuietWriter) this.qw).setCount(f.length());
+        }
         this.nextRolloverCheck = getNextCheckForTomorrow();
     }
 
@@ -144,11 +147,15 @@ public class DatedRollingFileAppender extends FileAppender {
     }
 
     /**
-    * Set the maximum size that the output file is allowed to reach
-    * before being rolled over to backup files.
-    */
-    public void setMaximumFileSize(long maxFileSize) {
-        this.maxFileSize = maxFileSize;
+     * Set the maximum size that the output file is allowed to reach
+     * before being rolled over to backup files.
+     */
+    public void setMaxFileSize(String value) {
+        maxFileSize = OptionConverter.toFileSize(value, maxFileSize + 1);
+    }
+
+    protected void setQWForFiles(Writer writer) {
+        this.qw = new CountingQuietWriter(writer, errorHandler);
     }
 
     /**
@@ -210,7 +217,6 @@ public class DatedRollingFileAppender extends FileAppender {
                 // This will also close the file. This is OK since multiple
                 // close operations are safe.
                 fileNumber = 0;
-                nextRolloverSize = 0;
                 this.setFile(this.originalFileName, this.fileAppend, this.bufferedIO, this.bufferSize);
             } catch (IOException ioe) {
                 if (ioe instanceof InterruptedIOException) {
@@ -246,12 +252,11 @@ public class DatedRollingFileAppender extends FileAppender {
     }
 
     private void sizeBasedRollOver() {
-        long size = ((CountingQuietWriter) qw).getCount();
-        if (size >= maxFileSize && size >= nextRolloverSize) {
+        long size = ((CountingQuietWriter) this.qw).getCount();
+        if (size >= maxFileSize) {
             LogLog.debug("Log reached maxFileSize. Roll over the log to next file. Current Log File name: " + this.fileName + "." + fileNumber);
 
             try {
-                nextRolloverSize = size + maxFileSize;
                 fileNumber += 1;
                 this.setFile(this.originalFileName, this.fileAppend, this.bufferedIO, this.bufferSize);
             } catch (IOException e) {
