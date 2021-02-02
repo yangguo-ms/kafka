@@ -107,7 +107,7 @@ public class DatedRollingFileAppender extends FileAppender {
      * Get the maximum size that the output file is allowed to reach
      * before being rolled over to backup files.
      */
-    public long getMaxFileSize() {
+    public long getMaximumFileSize() {
         return maxFileSize;
     }
 
@@ -159,6 +159,10 @@ public class DatedRollingFileAppender extends FileAppender {
      */
     public void setMaxFileSize(String value) {
         maxFileSize = OptionConverter.toFileSize(value, maxFileSize + 1);
+    }
+
+    public void setMaximumFileSize(long maxFileSize) {
+        this.maxFileSize = maxFileSize;
     }
 
     protected void setQWForFiles(Writer writer) {
