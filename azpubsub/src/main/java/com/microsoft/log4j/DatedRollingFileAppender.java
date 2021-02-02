@@ -120,24 +120,36 @@ public class DatedRollingFileAppender extends FileAppender {
 
     public synchronized void setFile(String fileName, boolean append, boolean bufferedIO, int bufferSize) throws IOException {
         this.originalFileName = fileName;
-        int fileNumber = 0;
         String name = this.originalFileName + sdf.format(new Date());
-        File file = new File(name + '.' + fileNumber);
-        while (file.exists()) {
-            fileNumber += 1;
-            file = new File(name + '.' + fileNumber);
-        }
-
-        if (fileNumber != 0) {
-            File f = new File(name + '.' + (fileNumber - 1));
-            if (f.length() < maxFileSize) {
-                fileNumber -= 1;
+        Path logFile = Paths.get(this.originalFileName);
+        Path logPath = logFile.getParent();
+        Pattern pattern = Pattern.compile("^" + logFile.getFileName() + sdf.format(new Date()) + ".*$");
+        int fileNumber = 0;
+        Boolean isAppend = false;
+        long fileLength = 0;
+        File rootFolder = new File(logPath.toString());
+        String[] files = rootFolder.list();
+        for (String file : files) {
+            Matcher matcher = pattern.matcher(file);
+            if (matcher.matches()) {
+                String[] parts = file.split("\\.");
+                if (parts.length > 0 && parts[parts.length - 1].matches("\\d+")) {
+                    int number = Integer.parseInt(parts[parts.length - 1]);
+                    fileNumber = Integer.max(fileNumber, number);
+                }
             }
         }
-        name = name + '.' + fileNumber;
-        super.setFile(name, append, bufferedIO, bufferSize);
-        file = new File(name);
-        ((CountingQuietWriter) qw).setCount(file.length());
+        File file = new File(name + "." + fileNumber);
+        if (file.length() < maxFileSize) {
+            isAppend = true;
+            fileLength = file.length();
+        } else {
+            fileNumber += 1;
+        }
+        super.setFile(name + '.' + fileNumber, append, bufferedIO, bufferSize);
+        if (isAppend) {
+            ((CountingQuietWriter) qw).setCount(fileLength);
+        }
         this.nextRolloverCheck = getNextCheckForTomorrow();
     }
 
@@ -161,10 +173,6 @@ public class DatedRollingFileAppender extends FileAppender {
         maxFileSize = OptionConverter.toFileSize(value, maxFileSize + 1);
     }
 
-    public void setMaximumFileSize(long maxFileSize) {
-        this.maxFileSize = maxFileSize;
-    }
-
     protected void setQWForFiles(Writer writer) {
         this.qw = new CountingQuietWriter(writer, errorHandler);
     }
@@ -185,7 +193,7 @@ public class DatedRollingFileAppender extends FileAppender {
                 // delete old file(s)
                 if (this.maxBackupIndex > 0) {
                     Path logFile = Paths.get(this.originalFileName);
-                    Pattern pattern = Pattern.compile("^" + logFile.getFileName() + ".(?<yy>\\d{4})-(?<mm>\\d{2})-(?<dd>\\d{2}).(\\d+)$");
+                    Pattern pattern = Pattern.compile("^" + logFile.getFileName() + ".(?<yy>\\d{4})-(?<mm>\\d{2})-(?<dd>\\d{2}).*$");
                     // date till the log files to be retained
                     LocalDate dateTillToRetain =
                             Instant.ofEpochMilli(this.nextRolloverCheck)
