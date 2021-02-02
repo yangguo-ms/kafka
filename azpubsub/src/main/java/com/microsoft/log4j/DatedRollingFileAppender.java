@@ -57,14 +57,9 @@ public class DatedRollingFileAppender extends FileAppender {
     private long nextRolloverCheck = System.currentTimeMillis() - 1;
 
     /**
-     *  The default maximum file size is 10MB.
+     *  The default maximum file size is 100MB.
      */
-    protected long maxFileSize = 10 * 1024 * 1024;
-
-    /**
-     * The next daily file number we estimate a roll over should occur.
-     */
-    private int fileNumber = 0;
+    protected long maxFileSize = 100 * 1024 * 1024;
 
     /**
      * No log file cleanup by default.
@@ -125,12 +120,24 @@ public class DatedRollingFileAppender extends FileAppender {
 
     public synchronized void setFile(String fileName, boolean append, boolean bufferedIO, int bufferSize) throws IOException {
         this.originalFileName = fileName;
-        String name = this.originalFileName + sdf.format(new Date()) + "." + fileNumber;
-        super.setFile(name, append, bufferedIO, bufferSize);
-        if(append) {
-            File f = new File(name);
-            ((CountingQuietWriter) this.qw).setCount(f.length());
+        int fileNumber = 0;
+        String name = this.originalFileName + sdf.format(new Date());
+        File file = new File(name + '.' + fileNumber);
+        while (file.exists()) {
+            fileNumber += 1;
+            file = new File(name + '.' + fileNumber);
         }
+
+        if (fileNumber != 0) {
+            File f = new File(name + '.' + (fileNumber - 1));
+            if (f.length() < maxFileSize) {
+                fileNumber -= 1;
+            }
+        }
+        name = name + '.' + fileNumber;
+        super.setFile(name, append, bufferedIO, bufferSize);
+        file = new File(name);
+        ((CountingQuietWriter) qw).setCount(file.length());
         this.nextRolloverCheck = getNextCheckForTomorrow();
     }
 
@@ -165,9 +172,9 @@ public class DatedRollingFileAppender extends FileAppender {
      * @since 0.9.0
      */
     protected synchronized void subAppend(LoggingEvent event) {
-        sizeBasedRollOver();
+        long size = ((CountingQuietWriter) this.qw).getCount();
 
-        if (System.currentTimeMillis() >= this.nextRolloverCheck) {
+        if (size >= maxFileSize || System.currentTimeMillis() >= this.nextRolloverCheck) {
             LogLog.debug("Roll over the log to next day. Current Log File name: " + this.fileName);
 
             try {
@@ -216,7 +223,6 @@ public class DatedRollingFileAppender extends FileAppender {
 
                 // This will also close the file. This is OK since multiple
                 // close operations are safe.
-                fileNumber = 0;
                 this.setFile(this.originalFileName, this.fileAppend, this.bufferedIO, this.bufferSize);
             } catch (IOException ioe) {
                 if (ioe instanceof InterruptedIOException) {
@@ -248,23 +254,6 @@ public class DatedRollingFileAppender extends FileAppender {
         this.qw.write(Layout.LINE_SEP);
         if (shouldFlush(event)) {
             this.qw.flush();
-        }
-    }
-
-    private void sizeBasedRollOver() {
-        long size = ((CountingQuietWriter) this.qw).getCount();
-        if (size >= maxFileSize) {
-            LogLog.debug("Log reached maxFileSize. Roll over the log to next file. Current Log File name: " + this.fileName + "." + fileNumber);
-
-            try {
-                fileNumber += 1;
-                this.setFile(this.originalFileName, this.fileAppend, this.bufferedIO, this.bufferSize);
-            } catch (IOException e) {
-                if (e instanceof InterruptedIOException) {
-                    Thread.currentThread().interrupt();
-                }
-                LogLog.error("Size based rollOver() failed.", e);
-            }
         }
     }
 
