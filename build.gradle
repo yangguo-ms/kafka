@@ -977,6 +977,7 @@ project(':azpubsub') {
     compile project(':core')
     compile libs.scalaLibrary
     compileOnly libs.log4j
+    compile libs.commonsLang3
     
     testCompile libs.junit
   }

@@ -25,6 +25,7 @@
     <allow pkg="javax" />
     <allow pkg="org.apache.log4j"/>
     <allow pkg="org.apache.kafka.common"/>
+    <allow pkg="org.apache.commons.lang3"/>
     <allow pkg="com.microsoft.log4j"/>
     <allow pkg="com.microsoft.azpubsub.kafka"/>
     <allow pkg="com.microsoft.azpubsub.security"/>
