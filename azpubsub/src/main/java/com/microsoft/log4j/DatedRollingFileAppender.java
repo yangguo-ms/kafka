@@ -29,7 +29,9 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Calendar;
+import java.util.Comparator;
 import java.util.Date;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -118,38 +120,19 @@ public class DatedRollingFileAppender extends FileAppender {
         return maxBackupIndex;
     }
 
+    /**
+     * Sets and opens the file where the log output will go. The specified file must be writable.
+     * If there was already an opened file, then the previous file is closed first.
+     *
+     * Overrides setFile in super class FileAppender
+     */
     public synchronized void setFile(String fileName, boolean append, boolean bufferedIO, int bufferSize) throws IOException {
         this.originalFileName = fileName;
-        String name = this.originalFileName + sdf.format(new Date());
-        Path logFile = Paths.get(this.originalFileName);
-        Path logPath = logFile.getParent();
-        Pattern pattern = Pattern.compile("^" + logFile.getFileName() + sdf.format(new Date()) + ".*$");
-        int fileNumber = 0;
-        Boolean isAppend = false;
-        long fileLength = 0;
-        File rootFolder = new File(logPath.toString());
-        String[] files = rootFolder.list();
-        for (String file : files) {
-            Matcher matcher = pattern.matcher(file);
-            if (matcher.matches()) {
-                String[] parts = file.split("\\.");
-                if (parts.length > 0 && parts[parts.length - 1].matches("\\d+")) {
-                    int number = Integer.parseInt(parts[parts.length - 1]);
-                    fileNumber = Integer.max(fileNumber, number);
-                }
-            }
-        }
-        File file = new File(name + "." + fileNumber);
-        if (file.length() < maxFileSize) {
-            isAppend = true;
-            fileLength = file.length();
-        } else {
-            fileNumber += 1;
-        }
-        super.setFile(name + '.' + fileNumber, append, bufferedIO, bufferSize);
-        if (isAppend) {
-            ((CountingQuietWriter) qw).setCount(fileLength);
-        }
+        String currentFile = this.originalFileName + sdf.format(new Date()) + "." + getSerialNumber();
+        super.setFile(currentFile, append, bufferedIO, bufferSize);
+        // set the qw counter to current/latest file length
+        File file = new File(currentFile);
+        ((CountingQuietWriter) qw).setCount(file.length());
         this.nextRolloverCheck = getNextCheckForTomorrow();
     }
 
@@ -168,11 +151,22 @@ public class DatedRollingFileAppender extends FileAppender {
     /**
      * Set the maximum size that the output file is allowed to reach
      * before being rolled over to backup files.
+     *
+     * <p>
+     * In configuration files, the <b>MaxFileSize</b> option takes an long
+     * integer in the range 0 - 2^63. You can specify the value with the
+     * suffixes "KB", "MB" or "GB" so that the integer is interpreted being
+     * expressed respectively in kilobytes, megabytes or gigabytes. For example,
+     * the value "10KB" will be interpreted as 10240.
      */
     public void setMaxFileSize(String value) {
         maxFileSize = OptionConverter.toFileSize(value, maxFileSize + 1);
     }
 
+    /**
+     * Sets the quiet writer to counting quiet writer
+     * Overrides setQWForFiles in super class FileAppender
+     */
     protected void setQWForFiles(Writer writer) {
         this.qw = new CountingQuietWriter(writer, errorHandler);
     }
@@ -193,7 +187,7 @@ public class DatedRollingFileAppender extends FileAppender {
                 // delete old file(s)
                 if (this.maxBackupIndex > 0) {
                     Path logFile = Paths.get(this.originalFileName);
-                    Pattern pattern = Pattern.compile("^" + logFile.getFileName() + ".(?<yy>\\d{4})-(?<mm>\\d{2})-(?<dd>\\d{2}).*$");
+                    Pattern pattern = Pattern.compile("^" + logFile.getFileName() + ".(?<yy>\\d{4})-(?<mm>\\d{2})-(?<dd>\\d{2})(.(\\d+))?$");
                     // date till the log files to be retained
                     LocalDate dateTillToRetain =
                             Instant.ofEpochMilli(this.nextRolloverCheck)
@@ -277,5 +271,42 @@ public class DatedRollingFileAppender extends FileAppender {
         c.set(Calendar.MILLISECOND, 0);
         c.add(Calendar.DATE, 1);
         return c.getTimeInMillis();
+    }
+
+    private String getSerialNumber() throws IOException {
+        // find the current/latest log file for the current date
+        Path logFile = Paths.get(originalFileName);
+        Pattern pattern = Pattern.compile("^" + logFile.getFileName() + sdf.format(new Date()) + "(.(?<sno>\\d+))?$");
+        Optional<String> file =
+            Files.find(
+                logFile.getParent(), 1,
+                (path, basicFileAttributes) -> {
+                    Matcher matcher = pattern.matcher(path.getFileName().toString());
+                    if (matcher.matches()) {
+                        return true;
+                    }
+                    return false;
+                })
+                .map(p -> p.toFile().getName())
+                .max(Comparator.comparing(String::valueOf));
+
+        // extract the serial number if the current/latest log file exist
+        int sno = 1;
+        if (file.isPresent()) {
+            String filename = file.get();
+            Matcher matcher = pattern.matcher(filename);
+            if (matcher.matches()) {
+                if (matcher.group("sno") != null) {
+                    sno = Integer.parseInt(matcher.group("sno"));
+                    File f = Paths.get(logFile.getParent().toString(), filename).toFile();
+                    // if the current/latest file reached the max file size, move it to next
+                    if (f.length() >= maxFileSize) {
+                        sno++;
+                    }
+                }
+            }
+        }
+
+        return String.format("%04d", sno);
     }
 }
