@@ -35,6 +35,8 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.log4j.FileAppender;
 import org.apache.log4j.Layout;
 import org.apache.log4j.helpers.LogLog;
@@ -128,11 +130,10 @@ public class DatedRollingFileAppender extends FileAppender {
      */
     public synchronized void setFile(String fileName, boolean append, boolean bufferedIO, int bufferSize) throws IOException {
         this.originalFileName = fileName;
-        String currentFile = this.originalFileName + sdf.format(new Date()) + "." + getSerialNumber();
-        super.setFile(currentFile, append, bufferedIO, bufferSize);
+        Pair<String, Long> res = getSerialNumber();
+        super.setFile(this.originalFileName + sdf.format(new Date()) + "." + res.getLeft(), append, bufferedIO, bufferSize);
         // set the qw counter to current/latest file length
-        File file = new File(currentFile);
-        ((CountingQuietWriter) qw).setCount(file.length());
+        ((CountingQuietWriter) qw).setCount(res.getRight());
         this.nextRolloverCheck = getNextCheckForTomorrow();
     }
 
@@ -273,7 +274,7 @@ public class DatedRollingFileAppender extends FileAppender {
         return c.getTimeInMillis();
     }
 
-    private String getSerialNumber() throws IOException {
+    private Pair<String, Long> getSerialNumber() throws IOException {
         // find the current/latest log file for the current date
         Path logFile = Paths.get(originalFileName);
         Pattern pattern = Pattern.compile("^" + logFile.getFileName() + sdf.format(new Date()) + "(.(?<sno>\\d+))?$");
@@ -292,6 +293,7 @@ public class DatedRollingFileAppender extends FileAppender {
 
         // extract the serial number if the current/latest log file exist
         int sno = 1;
+        long size = 0;
         if (file.isPresent()) {
             String filename = file.get();
             Matcher matcher = pattern.matcher(filename);
@@ -302,11 +304,13 @@ public class DatedRollingFileAppender extends FileAppender {
                     // if the current/latest file reached the max file size, move it to next
                     if (f.length() >= maxFileSize) {
                         sno++;
+                    } else {
+                        size = f.length();
                     }
                 }
             }
         }
 
-        return String.format("%04d", sno);
+        return new ImmutablePair<String, Long>(String.format("%04d", sno), size);
     }
 }
