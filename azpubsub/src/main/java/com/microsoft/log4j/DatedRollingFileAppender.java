@@ -300,12 +300,14 @@ public class DatedRollingFileAppender extends FileAppender {
             if (matcher.matches()) {
                 if (matcher.group("sno") != null) {
                     sno = Integer.parseInt(matcher.group("sno"));
-                    File f = Paths.get(logFile.getParent().toString(), filename).toFile();
-                    // if the current/latest file reached the max file size, move it to next
-                    if (f.length() >= maxFileSize) {
-                        sno++;
-                    } else {
-                        size = f.length();
+                    if (logFile.getParent() != null && filename != null) {
+                        File f = Paths.get(logFile.getParent().toString(), filename).toFile();
+                        // if the current/latest file reached the max file size, move it to next
+                        if (f.length() >= maxFileSize) {
+                            sno++;
+                        } else {
+                            size = f.length();
+                        }
                     }
                 }
             }
