@@ -113,14 +113,6 @@ public class DatedRollingFileAppender extends FileAppender {
     }
 
     /**
-     * Get the maximum size that the output file is allowed to reach
-     * before being rolled over to backup files.
-     */
-    public long getMaxFileSize() {
-        return maxFileSize;
-    }
-
-    /**
      * Returns the value of the <b>MaxBackupIndex</b> option.
      */
     public int getMaxBackupIndex() {
