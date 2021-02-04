@@ -56,14 +56,19 @@ public class DatedRollingFileAppender extends FileAppender {
     private final static String DATE_PATTERN = "'.'yyyy-MM-dd";
 
     /**
+     *  The default maximum file size is 100MB.
+     */
+    private final static long DEFAULT_MAX_FILE_SIZE = 100 * 1024 * 1024;
+
+    /**
      * The next time we estimate a roll over should occur.
      */
     private long nextRolloverCheck = System.currentTimeMillis() - 1;
 
     /**
-     *  The default maximum file size is 100MB.
+     *  The size based rolling is not enabled when the maximum file size is 0.
      */
-    protected long maxFileSize = 100 * 1024 * 1024;
+    protected long maxFileSize = 0;
 
     /**
      * No log file cleanup by default.
@@ -111,7 +116,7 @@ public class DatedRollingFileAppender extends FileAppender {
      * Get the maximum size that the output file is allowed to reach
      * before being rolled over to backup files.
      */
-    public long getMaximumFileSize() {
+    public long getMaxFileSize() {
         return maxFileSize;
     }
 
@@ -130,10 +135,14 @@ public class DatedRollingFileAppender extends FileAppender {
      */
     public synchronized void setFile(String fileName, boolean append, boolean bufferedIO, int bufferSize) throws IOException {
         this.originalFileName = fileName;
-        Pair<String, Long> res = getSerialNumber();
-        super.setFile(this.originalFileName + sdf.format(new Date()) + "." + res.getLeft(), append, bufferedIO, bufferSize);
-        // set the qw counter to current/latest file length
-        ((CountingQuietWriter) qw).setCount(res.getRight());
+        if (this.maxFileSize > 0) {
+            Pair<String, Long> res = getSerialNumber();
+            super.setFile(this.originalFileName + sdf.format(new Date()) + "." + res.getLeft(), append, bufferedIO, bufferSize);
+            // set the qw counter to current/latest file length
+            ((CountingQuietWriter) qw).setCount(res.getRight());
+        } else {
+            super.setFile(this.originalFileName + sdf.format(new Date()), append, bufferedIO, bufferSize);
+        }
         this.nextRolloverCheck = getNextCheckForTomorrow();
     }
 
@@ -161,7 +170,7 @@ public class DatedRollingFileAppender extends FileAppender {
      * the value "10KB" will be interpreted as 10240.
      */
     public void setMaxFileSize(String value) {
-        maxFileSize = OptionConverter.toFileSize(value, maxFileSize + 1);
+        maxFileSize = OptionConverter.toFileSize(value, DEFAULT_MAX_FILE_SIZE);
     }
 
     /**
@@ -181,7 +190,7 @@ public class DatedRollingFileAppender extends FileAppender {
     protected synchronized void subAppend(LoggingEvent event) {
         long size = ((CountingQuietWriter) this.qw).getCount();
 
-        if (size >= maxFileSize || System.currentTimeMillis() >= this.nextRolloverCheck) {
+        if ((maxFileSize > 0 && size >= maxFileSize) || System.currentTimeMillis() >= this.nextRolloverCheck) {
             LogLog.debug("Roll over the log to next day. Current Log File name: " + this.fileName);
 
             try {
