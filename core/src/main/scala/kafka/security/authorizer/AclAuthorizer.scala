@@ -241,7 +241,7 @@ class AclAuthorizer extends Authorizer with Logging {
     if (zkClient != null) zkClient.close()
   }
 
-  private def authorizeAction(requestContext: AuthorizableRequestContext, action: Action): AuthorizationResult = {
+  protected def authorizeAction(requestContext: AuthorizableRequestContext, action: Action): AuthorizationResult = {
     val resource = AuthorizerUtils.convertToResource(action.resourcePattern)
     if (resource.patternType != PatternType.LITERAL) {
       throw new IllegalArgumentException("Only literal resources are supported. Got: " + resource.patternType)
@@ -325,7 +325,7 @@ class AclAuthorizer extends Authorizer with Logging {
     }
   }
 
-  private def matchingAclExists(operation: Operation, resource: Resource, principal: KafkaPrincipal, host: String, permissionType: PermissionType, acls: Set[Acl]): Boolean = {
+  protected def matchingAclExists(operation: Operation, resource: Resource, principal: KafkaPrincipal, host: String, permissionType: PermissionType, acls: Set[Acl]): Boolean = {
     acls.find { acl =>
       acl.permissionType == permissionType &&
         (acl.principal == principal || acl.principal == Acl.WildCardPrincipal) &&
