@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.Logger
 import com.yammer.metrics.core.{Meter, MetricName}
 import kafka.metrics.KafkaMetricsGroup
 import kafka.security.auth.Topic
-import kafka.security.authorizer.AclAuthorizer
+import kafka.security.authorizer.{AclAuthorizer, AuthorizerUtils}
 import kafka.utils.Logging
 import org.apache.kafka.common.security.auth.{KafkaPrincipal, SecurityProtocol}
 import org.apache.kafka.common.utils.Utils
@@ -74,8 +74,9 @@ class AzPubSubAclAuthorizer extends AclAuthorizer with Logging with KafkaMetrics
     var authorizationResults = List[AuthorizationResult]()
     val loop = new Breaks
     for (action <- actions.asScala) {
-      if (action.resourcePattern.resourceType == Topic && authZConfig.isDisabled(action.resourcePattern.name)) {
-        aclAuthorizerLogger.debug(s"AuthZ is disabled for resource: ${action.resourcePattern.name}")
+      val resource = AuthorizerUtils.convertToResource(action.resourcePattern)
+      if (resource.resourceType == Topic && authZConfig.isDisabled(resource.name)) {
+        aclAuthorizerLogger.debug(s"AuthZ is disabled for resource: $resource")
         successRate.mark()
         disabledRate.mark()
         authorizationResults ::= AuthorizationResult.ALLOWED
@@ -100,19 +101,20 @@ class AzPubSubAclAuthorizer extends AclAuthorizer with Logging with KafkaMetrics
         authorizationResults ::= AuthorizationResult.DENIED
       }
     }
-    return authorizationResults.asJava
-  }
 
-  private def getClaimRequestContext(requestContext: AuthorizableRequestContext, claimPrincipal: KafkaPrincipal): AuthorizableRequestContext = {
-    new AuthorizableRequestContext {
-      override def clientId(): String = requestContext.clientId
-      override def requestType(): Int = requestContext.requestType
-      override def listenerName(): String = requestContext.listenerName
-      override def clientAddress(): InetAddress = requestContext.clientAddress
-      override def principal(): KafkaPrincipal = claimPrincipal
-      override def securityProtocol(): SecurityProtocol = requestContext.securityProtocol
-      override def correlationId(): Int = requestContext.correlationId
-      override def requestVersion(): Int = requestContext.requestVersion
+    def getClaimRequestContext(requestContext: AuthorizableRequestContext, claimPrincipal: KafkaPrincipal): AuthorizableRequestContext = {
+      new AuthorizableRequestContext {
+        override def clientId(): String = requestContext.clientId
+        override def requestType(): Int = requestContext.requestType
+        override def listenerName(): String = requestContext.listenerName
+        override def clientAddress(): InetAddress = requestContext.clientAddress
+        override def principal(): KafkaPrincipal = claimPrincipal
+        override def securityProtocol(): SecurityProtocol = requestContext.securityProtocol
+        override def correlationId(): Int = requestContext.correlationId
+        override def requestVersion(): Int = requestContext.requestVersion
+      }
     }
+
+    return authorizationResults.asJava
   }
 }
