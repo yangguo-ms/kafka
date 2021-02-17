@@ -1,9 +1,8 @@
 package com.microsoft.azpubsub.security.auth
 
-import com.typesafe.scalalogging.Logger
 import com.yammer.metrics.core.{Meter, MetricName}
 import kafka.metrics.KafkaMetricsGroup
-import kafka.security.auth.Topic
+import kafka.security.auth._
 import kafka.security.authorizer.{AclAuthorizer, AuthorizerUtils}
 import kafka.utils.Logging
 import org.apache.kafka.common.security.auth.{KafkaPrincipal, SecurityProtocol}
@@ -13,13 +12,13 @@ import org.apache.kafka.server.authorizer.{Action, AuthorizableRequestContext, A
 import java.net.InetAddress
 import java.util
 import java.util.concurrent._
-import scala.collection.JavaConverters.{asScalaSetConverter, _}
+import java.util.regex.Pattern
+import scala.collection.JavaConverters.asScalaSetConverter
 
 /*
  * AzPubSub ACL Authorizer to handle the certificate & role based principal type
  */
 class AzPubSubAclAuthorizer extends AclAuthorizer with Logging with KafkaMetricsGroup {
-  private[security] val aclAuthorizerLogger = Logger("kafka.authorizer.logger")
 
   private val successRate: Meter = newMeter("AuthorizerSuccessPerSec", "success", TimeUnit.SECONDS)
   private val failureRate: Meter = newMeter("AuthorizerFailurePerSec", "failure", TimeUnit.SECONDS)
@@ -41,7 +40,7 @@ class AzPubSubAclAuthorizer extends AclAuthorizer with Logging with KafkaMetrics
   override def authorizeAction(requestContext: AuthorizableRequestContext, action: Action): AuthorizationResult = {
     val resource = AuthorizerUtils.convertToResource(action.resourcePattern)
     if (resource.resourceType == Topic && authZConfig.isDisabled(resource.name)) {
-      aclAuthorizerLogger.debug(s"AuthZ is disabled for resource: $resource")
+      authorizerLogger.debug(s"AuthZ is disabled for resource: $resource")
       successRate.mark()
       disabledRate.mark()
       return AuthorizationResult.ALLOWED
@@ -78,5 +77,33 @@ class AzPubSubAclAuthorizer extends AclAuthorizer with Logging with KafkaMetrics
 
     failureRate.mark()
     return AuthorizationResult.DENIED
+  }
+
+  override def matchingAclExists(operation: Operation, resource: Resource, principal: KafkaPrincipal, host: String, permissionType: PermissionType, acls: Set[Acl]): Boolean = {
+
+    // principal -> APMF\<MF>.<Env/VE/Claim>.<Cluster>
+    // acl.principal -> APMF\*.<Env/VE/Claim>.*
+    def matchingPartialWildCardPrincipal(acl: Acl, principal: KafkaPrincipal): Boolean = {
+      if (acl.principal == principal) {
+        return true
+      }
+      val principalPattern = acl.principal.getName.replace("""\""", """\\""").replace("/", """\/""").replace("*", ".*")
+      val pattern: Pattern = Pattern.compile("^" + principalPattern + "$")
+      val matcher = pattern.matcher(principal.getName)
+      if (matcher.matches()) {
+        return true
+      }
+      return false
+    }
+
+    acls.find { acl =>
+      acl.permissionType == permissionType &&
+              (matchingPartialWildCardPrincipal(acl, principal) || acl.principal == Acl.WildCardPrincipal) &&
+              (operation == acl.operation || acl.operation == All) &&
+              (acl.host == host || acl.host == Acl.WildCardHost)
+    }.exists { acl =>
+      authorizerLogger.debug(s"operation = $operation on resource = $resource from host = $host is $permissionType based on acl = $acl")
+      true
+    }
   }
 }

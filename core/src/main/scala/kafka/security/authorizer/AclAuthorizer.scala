@@ -81,7 +81,7 @@ object AclAuthorizer {
 }
 
 class AclAuthorizer extends Authorizer with Logging {
-  private[security] val authorizerLogger = Logger("kafka.authorizer.logger")
+  protected[security] val authorizerLogger = Logger("kafka.authorizer.logger")
   private var superUsers = Set.empty[KafkaPrincipal]
   private var shouldAllowEveryoneIfNoAclIsFound = false
   private var zkClient: KafkaZkClient = _
