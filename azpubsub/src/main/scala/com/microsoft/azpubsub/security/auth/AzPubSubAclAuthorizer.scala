@@ -81,14 +81,12 @@ class AzPubSubAclAuthorizer extends AclAuthorizer with Logging with KafkaMetrics
 
   override def matchingAclExists(operation: Operation, resource: Resource, principal: KafkaPrincipal, host: String, permissionType: PermissionType, acls: Set[Acl]): Boolean = {
 
-    // principal -> APMF\<MF>.<Env/VE/Claim>.<Cluster>
-    // acl.principal -> APMF\*.<Env/VE/Claim>.*
     def matchingPartialWildCardPrincipal(acl: Acl, principal: KafkaPrincipal): Boolean = {
       if (acl.principal == principal) {
         return true
       }
-      val principalPattern = acl.principal.getName.replace("""\""", """\\""").replace("/", """\/""").replace("*", ".*")
-      val pattern: Pattern = Pattern.compile("^" + principalPattern + "$")
+      val principalRegex = acl.principal.getName.replace("""\""", """\\""").replace("/", """\/""").replace("*", ".*")
+      val pattern: Pattern = Pattern.compile("^" + principalRegex + "$")
       val matcher = pattern.matcher(principal.getName)
       if (matcher.matches()) {
         return true
