@@ -19,6 +19,8 @@ package org.apache.kafka.common.security.auth;
 import org.apache.kafka.common.utils.SecurityUtils;
 
 import java.security.Principal;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static java.util.Objects.requireNonNull;
 
@@ -48,11 +50,17 @@ public class KafkaPrincipal implements Principal {
 
     private final String principalType;
     private final String name;
+    private final boolean isRegex;
+    private Pattern pattern = null;
     private volatile boolean tokenAuthenticated;
 
     public KafkaPrincipal(String principalType, String name) {
         this.principalType = requireNonNull(principalType, "Principal type cannot be null");
         this.name = requireNonNull(name, "Principal name cannot be null");
+        this.isRegex = this.name.startsWith("regex:");
+        if(this.isRegex) {
+            this.pattern = Pattern.compile(this.name.substring(6));
+        }
     }
 
     /**
@@ -99,12 +107,30 @@ public class KafkaPrincipal implements Principal {
         return principalType;
     }
 
+    public boolean getIsRegex() {
+        return isRegex;
+    }
+
     public void tokenAuthenticated(boolean tokenAuthenticated) {
         this.tokenAuthenticated = tokenAuthenticated;
     }
 
     public boolean tokenAuthenticated() {
         return tokenAuthenticated;
+    }
+
+    public boolean matching(KafkaPrincipal principal) {
+        if (this.name == "*") {
+            return true;
+        }
+        if (!this.isRegex && this.name == principal.name) {
+            return true;
+        }
+        if (this.isRegex) {
+            Matcher matcher = this.pattern.matcher(principal.name);
+            return matcher.matches();
+        }
+        return false;
     }
 }
 
