@@ -705,6 +705,7 @@ project(':core') {
 
   dependencies {
     compile project(':clients')
+    compile libs.dropwizardCore
     compile libs.jacksonDatabind
     compile libs.jacksonModuleScala
     compile libs.jacksonDataformatCsv
