@@ -47,6 +47,7 @@ import static java.util.Objects.requireNonNull;
 public class KafkaPrincipal implements Principal {
     public static final String USER_TYPE = "User";
     public final static KafkaPrincipal ANONYMOUS = new KafkaPrincipal(KafkaPrincipal.USER_TYPE, "ANONYMOUS");
+    public final static String REGEX = "regex#";
 
     private final String principalType;
     private final String name;
@@ -57,9 +58,9 @@ public class KafkaPrincipal implements Principal {
     public KafkaPrincipal(String principalType, String name) {
         this.principalType = requireNonNull(principalType, "Principal type cannot be null");
         this.name = requireNonNull(name, "Principal name cannot be null");
-        this.isRegex = this.name.startsWith("regex:");
+        this.isRegex = this.name.startsWith(REGEX);
         if(this.isRegex) {
-            this.pattern = Pattern.compile(this.name.substring(6));
+            this.pattern = Pattern.compile(this.name.substring(REGEX.length()));
         }
     }
 
@@ -88,7 +89,7 @@ public class KafkaPrincipal implements Principal {
         if (getClass() != o.getClass()) return false;
 
         KafkaPrincipal that = (KafkaPrincipal) o;
-        return principalType.equals(that.principalType) && name.equals(that.name);
+        return principalType.equals(that.principalType) && this.match(that.name);
     }
 
     @Override
@@ -107,10 +108,6 @@ public class KafkaPrincipal implements Principal {
         return principalType;
     }
 
-    public boolean getIsRegex() {
-        return isRegex;
-    }
-
     public void tokenAuthenticated(boolean tokenAuthenticated) {
         this.tokenAuthenticated = tokenAuthenticated;
     }
@@ -119,18 +116,12 @@ public class KafkaPrincipal implements Principal {
         return tokenAuthenticated;
     }
 
-    public boolean matching(KafkaPrincipal principal) {
-        if (this.name == "*") {
-            return true;
-        }
-        if (!this.isRegex && this.name == principal.name) {
-            return true;
-        }
+    private boolean match(String name) {
         if (this.isRegex) {
-            Matcher matcher = this.pattern.matcher(principal.name);
+            Matcher matcher = this.pattern.matcher(name);
             return matcher.matches();
         }
-        return false;
+        return this.name.equals(name);
     }
 }
 

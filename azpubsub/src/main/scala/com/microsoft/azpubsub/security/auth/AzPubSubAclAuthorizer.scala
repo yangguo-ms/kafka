@@ -12,7 +12,6 @@ import org.apache.kafka.server.authorizer.{Action, AuthorizableRequestContext, A
 import java.net.InetAddress
 import java.util
 import java.util.concurrent._
-import java.util.regex.Pattern
 import scala.collection.JavaConverters.asScalaSetConverter
 
 /*
@@ -77,17 +76,5 @@ class AzPubSubAclAuthorizer extends AclAuthorizer with Logging with KafkaMetrics
 
     failureRate.mark()
     return AuthorizationResult.DENIED
-  }
-
-  override def matchingAclExists(operation: Operation, resource: Resource, principal: KafkaPrincipal, host: String, permissionType: PermissionType, acls: Set[Acl]): Boolean = {
-    acls.find { acl =>
-      acl.permissionType == permissionType &&
-              acl.principal.matching(principal) &&
-              (operation == acl.operation || acl.operation == All) &&
-              (acl.host == host || acl.host == Acl.WildCardHost)
-    }.exists { acl =>
-      authorizerLogger.debug(s"operation = $operation on resource = $resource from host = $host is $permissionType based on acl = $acl")
-      true
-    }
   }
 }

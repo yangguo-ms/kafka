@@ -81,7 +81,7 @@ object AclAuthorizer {
 }
 
 class AclAuthorizer extends Authorizer with Logging {
-  protected[security] val authorizerLogger = Logger("kafka.authorizer.logger")
+  private[security] val authorizerLogger = Logger("kafka.authorizer.logger")
   private var superUsers = Set.empty[KafkaPrincipal]
   private var shouldAllowEveryoneIfNoAclIsFound = false
   private var zkClient: KafkaZkClient = _
@@ -325,7 +325,7 @@ class AclAuthorizer extends Authorizer with Logging {
     }
   }
 
-  protected def matchingAclExists(operation: Operation, resource: Resource, principal: KafkaPrincipal, host: String, permissionType: PermissionType, acls: Set[Acl]): Boolean = {
+  private def matchingAclExists(operation: Operation, resource: Resource, principal: KafkaPrincipal, host: String, permissionType: PermissionType, acls: Set[Acl]): Boolean = {
     acls.find { acl =>
       acl.permissionType == permissionType &&
         (acl.principal == principal || acl.principal == Acl.WildCardPrincipal) &&
