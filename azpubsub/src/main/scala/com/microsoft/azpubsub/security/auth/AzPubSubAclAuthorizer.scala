@@ -39,46 +39,48 @@ class AzPubSubAclAuthorizer extends AclAuthorizer with Logging with KafkaMetrics
   }
 
   override def authorize(requestContext: AuthorizableRequestContext, actions: util.List[Action]): util.List[AuthorizationResult] = {
-    actions.asScala.map { action => {
-      val resource = AuthorizerUtils.convertToResource(action.resourcePattern)
-      if (resource.resourceType == Topic && authZConfig.isDisabled(resource.name)) {
-        aclAuthorizerLogger.debug(s"AuthZ is disabled for resource: $resource")
-        successRate.mark()
-        disabledRate.mark()
-        AuthorizationResult.ALLOWED
-      }
+    actions.asScala.map { action => this.authorizeAction(requestContext, action) }.asJava
+  }
 
-      def getClaimRequestContext(requestContext: AuthorizableRequestContext, claimPrincipal: KafkaPrincipal): AuthorizableRequestContext = {
-        new AuthorizableRequestContext {
-          override def clientId(): String = requestContext.clientId
-          override def requestType(): Int = requestContext.requestType
-          override def listenerName(): String = requestContext.listenerName
-          override def clientAddress(): InetAddress = requestContext.clientAddress
-          override def principal(): KafkaPrincipal = claimPrincipal
-          override def securityProtocol(): SecurityProtocol = requestContext.securityProtocol
-          override def correlationId(): Int = requestContext.correlationId
-          override def requestVersion(): Int = requestContext.requestVersion
+  private def authorizeAction(requestContext: AuthorizableRequestContext, action: Action): AuthorizationResult = {
+    val resource = AuthorizerUtils.convertToResource(action.resourcePattern)
+    if (resource.resourceType == Topic && authZConfig.isDisabled(resource.name)) {
+      aclAuthorizerLogger.debug(s"AuthZ is disabled for resource: $resource")
+      successRate.mark()
+      disabledRate.mark()
+      return AuthorizationResult.ALLOWED
+    }
+
+    def getClaimRequestContext(requestContext: AuthorizableRequestContext, claimPrincipal: KafkaPrincipal): AuthorizableRequestContext = {
+      new AuthorizableRequestContext {
+        override def clientId(): String = requestContext.clientId
+        override def requestType(): Int = requestContext.requestType
+        override def listenerName(): String = requestContext.listenerName
+        override def clientAddress(): InetAddress = requestContext.clientAddress
+        override def principal(): KafkaPrincipal = claimPrincipal
+        override def securityProtocol(): SecurityProtocol = requestContext.securityProtocol
+        override def correlationId(): Int = requestContext.correlationId
+        override def requestVersion(): Int = requestContext.requestVersion
+      }
+    }
+
+    val sessionPrincipal = requestContext.principal
+    if (classOf[AzPubSubPrincipal] == sessionPrincipal.getClass) {
+      val principal = sessionPrincipal.asInstanceOf[AzPubSubPrincipal]
+      for (role <- principal.getRoles.asScala) {
+        val claimPrincipal = new KafkaPrincipal(principal.getPrincipalType(), role)
+        val claimRequestContext = getClaimRequestContext(requestContext, claimPrincipal)
+        if (super.authorize(claimRequestContext, List(action).asJava).asScala.head == AuthorizationResult.ALLOWED) {
+          successRate.mark()
+          return AuthorizationResult.ALLOWED
         }
       }
+    } else if (super.authorize(requestContext, List(action).asJava).asScala.head == AuthorizationResult.ALLOWED) {
+      successRate.mark()
+      return AuthorizationResult.ALLOWED
+    }
 
-      val sessionPrincipal = requestContext.principal
-      if (classOf[AzPubSubPrincipal] == sessionPrincipal.getClass) {
-        val principal = sessionPrincipal.asInstanceOf[AzPubSubPrincipal]
-        for (role <- principal.getRoles.asScala) {
-          val claimPrincipal = new KafkaPrincipal(principal.getPrincipalType(), role)
-          val claimRequestContext = getClaimRequestContext(requestContext, claimPrincipal)
-          if (super.authorize(claimRequestContext, List(action).asJava).asScala.head == AuthorizationResult.ALLOWED) {
-            successRate.mark()
-            AuthorizationResult.ALLOWED
-          }
-        }
-      } else if (super.authorize(requestContext, List(action).asJava).asScala.head == AuthorizationResult.ALLOWED) {
-        successRate.mark()
-        AuthorizationResult.ALLOWED
-      }
-
-      failureRate.mark()
-      AuthorizationResult.DENIED
-    }}.asJava
+    failureRate.mark()
+    return AuthorizationResult.DENIED
   }
 }
