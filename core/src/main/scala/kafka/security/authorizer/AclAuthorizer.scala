@@ -241,7 +241,7 @@ class AclAuthorizer extends Authorizer with Logging {
     if (zkClient != null) zkClient.close()
   }
 
-  protected def authorizeAction(requestContext: AuthorizableRequestContext, action: Action): AuthorizationResult = {
+  private def authorizeAction(requestContext: AuthorizableRequestContext, action: Action): AuthorizationResult = {
     val resource = AuthorizerUtils.convertToResource(action.resourcePattern)
     if (resource.patternType != PatternType.LITERAL) {
       throw new IllegalArgumentException("Only literal resources are supported. Got: " + resource.patternType)
