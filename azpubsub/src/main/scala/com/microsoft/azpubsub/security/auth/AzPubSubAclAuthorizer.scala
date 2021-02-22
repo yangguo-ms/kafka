@@ -67,18 +67,18 @@ class AzPubSubAclAuthorizer extends AclAuthorizer with Logging with KafkaMetrics
         for (role <- principal.getRoles.asScala) {
           val claimPrincipal = new KafkaPrincipal(principal.getPrincipalType(), role)
           val claimRequestContext = getClaimRequestContext(requestContext, claimPrincipal)
-          if (super.authorize(claimRequestContext, List(action).asJava).asScala == AuthorizationResult.ALLOWED) {
+          if (super.authorize(claimRequestContext, List(action).asJava).asScala.head == AuthorizationResult.ALLOWED) {
             successRate.mark()
             AuthorizationResult.ALLOWED
           }
         }
-      } else if (super.authorize(requestContext, List(action).asJava).asScala == AuthorizationResult.ALLOWED) {
+      } else if (super.authorize(requestContext, List(action).asJava).asScala.head == AuthorizationResult.ALLOWED) {
         successRate.mark()
         AuthorizationResult.ALLOWED
       }
 
       failureRate.mark()
       AuthorizationResult.DENIED
-    } }.asJava
+    }}.asJava
   }
 }
