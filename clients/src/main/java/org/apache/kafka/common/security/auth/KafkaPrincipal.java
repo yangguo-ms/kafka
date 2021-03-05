@@ -50,8 +50,8 @@ public class KafkaPrincipal implements Principal {
     public final static String REGEX = "regex#";
 
     private final String principalType;
-    private final String name;
-    private final boolean isRegex;
+    private String name;
+    private boolean isRegex;
     private Pattern pattern = null;
     private volatile boolean tokenAuthenticated;
 
@@ -60,7 +60,12 @@ public class KafkaPrincipal implements Principal {
         this.name = requireNonNull(name, "Principal name cannot be null");
         this.isRegex = this.name.startsWith(REGEX);
         if (this.isRegex) {
-            this.pattern = Pattern.compile(this.name.substring(REGEX.length()));
+            this.name = this.name.substring(REGEX.length());
+            try {
+                this.pattern = Pattern.compile(this.name);
+            } catch (Exception e) {
+                this.isRegex = false;
+            }
         }
     }
 
