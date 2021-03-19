@@ -676,10 +676,13 @@ project(':core') {
 
   dependencies {
     compile project(':clients')
+    compile libs.httpasyncclient
+    compile libs.ini4j
     compile libs.jacksonDatabind
     compile libs.jacksonModuleScala
     compile libs.jacksonDataformatCsv
     compile libs.jacksonJDK8Datatypes
+    compile libs.jacksonJodaDatatypes
     compile libs.joptSimple
     compile libs.metrics
     compile libs.scalaCollectionCompat
