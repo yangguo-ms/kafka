@@ -17,8 +17,6 @@
 package org.apache.kafka.common.security.auth;
 
 import org.apache.kafka.common.utils.SecurityUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.security.Principal;
 import java.util.regex.Pattern;
@@ -46,7 +44,6 @@ import static java.util.Objects.requireNonNull;
  * </ol>
  */
 public class KafkaPrincipal implements Principal {
-    private static final Logger log = LoggerFactory.getLogger("kafka.authorizer.logger");
     public static final String USER_TYPE = "User";
     public final static KafkaPrincipal ANONYMOUS = new KafkaPrincipal(KafkaPrincipal.USER_TYPE, "ANONYMOUS");
     public final static String REGEX = "regex#";
@@ -65,7 +62,6 @@ public class KafkaPrincipal implements Principal {
             try {
                 this.pattern = Pattern.compile(this.name.substring(REGEX.length()));
             } catch (Exception e) {
-                log.error("The kafka principal pattern can not compile: " + e.getMessage(), e);
                 this.isRegex = false;
             }
         }
@@ -124,7 +120,6 @@ public class KafkaPrincipal implements Principal {
     }
 
     private boolean match(String thatName) {
-        log.debug("This principal - {}; passed in name - {}", this, thatName);
         if (this.isRegex) {
             return this.pattern.matcher(thatName).matches();
         }
