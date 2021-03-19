@@ -43,7 +43,7 @@ class AzPubSubAclAuthorizer extends AclAuthorizer with Logging with KafkaMetrics
   }
 
   private def authorizeAction(requestContext: AuthorizableRequestContext, action: Action): AuthorizationResult = {
-    val resource = AuthorizerUtils.convertToResource(action.resourcePattern)
+    val resource = action.resourcePattern
     if (resource.resourceType == Topic && authZConfig.isDisabled(resource.name)) {
       aclAuthorizerLogger.debug(s"AuthZ is disabled for resource: $resource")
       successRate.mark()
