@@ -49,7 +49,7 @@ public class KafkaPrincipal implements Principal {
     public final static String REGEX = "regex#";
 
     private final String principalType;
-    private String name;
+    private final String name;
     private boolean isRegex;
     private Pattern pattern = null;
     private volatile boolean tokenAuthenticated;
