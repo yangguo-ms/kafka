@@ -40,10 +40,8 @@ class AzPubSubAclAuthorizer extends AclAuthorizer with Logging with KafkaMetrics
     val resource = action.resourcePattern
     if (resource.resourceType == TOPIC && authZConfig.isDisabled(resource.name)) {
       aclAuthorizerLogger.debug(s"AuthZ is disabled for resource: $resource")
-      authorizerStats.topicStats(resource.name).successRate.mark()
-      authorizerStats.allTopicsStats.successRate.mark()
-      authorizerStats.topicStats(resource.name).disabledRate.mark()
-      authorizerStats.allTopicsStats.disabledRate.mark()
+      authorizerStats.topicStats(action, "disabled").successRate.mark()
+      authorizerStats.topicStats(action, "disabled").disabledRate.mark()
       return AuthorizationResult.ALLOWED
     }
 
@@ -67,28 +65,24 @@ class AzPubSubAclAuthorizer extends AclAuthorizer with Logging with KafkaMetrics
         val claimPrincipal = new KafkaPrincipal(principal.getPrincipalType(), role)
         val claimRequestContext = getClaimRequestContext(requestContext, claimPrincipal)
         if (super.authorize(claimRequestContext, List(action).asJava).asScala.head == AuthorizationResult.ALLOWED) {
-          authorizerStats.topicStats(resource.name).successRate.mark()
-          authorizerStats.allTopicsStats.successRate.mark()
+          authorizerStats.topicStats(action, claimPrincipal.getName).successRate.mark()
           return AuthorizationResult.ALLOWED
         }
       }
     } else if (super.authorize(requestContext, List(action).asJava).asScala.head == AuthorizationResult.ALLOWED) {
-      authorizerStats.topicStats(resource.name).successRate.mark()
-      authorizerStats.allTopicsStats.successRate.mark()
+      authorizerStats.topicStats(action, sessionPrincipal.getName).successRate.mark()
       return AuthorizationResult.ALLOWED
     }
 
-    authorizerStats.topicStats(resource.name).failureRate.mark()
-    authorizerStats.allTopicsStats.failureRate.mark()
+    authorizerStats.topicStats(action, sessionPrincipal.getName).failureRate.mark()
     return AuthorizationResult.DENIED
   }
 }
 
-class AuthorizerMetrics(name: Option[String]) extends KafkaMetricsGroup {
-  val tags: scala.collection.Map[String, String] = name match {
-    case None => Map.empty
-    case Some(topic) => Map("topic" -> topic)
-  }
+class AuthorizerMetrics(action: Action, principal: String) extends KafkaMetricsGroup {
+  val tags: scala.collection.Map[String, String] = Map("topic" -> action.resourcePattern.name,
+    "resource-type" -> action.resourcePattern.resourceType.toString,
+    "operation" -> action.operation.toString, "principal" -> principal)
 
   case class MeterWrapper(metricType: String, eventType: String) {
     @volatile private var lazyMeter: Meter = _
@@ -135,15 +129,19 @@ object AuthorizerStats {
   val SuccessPerSec = "AuthorizerSuccessPerSec"
   val FailurePerSec = "AuthorizerFailurePerSec"
   val DisabledPerSec = "AuthorizerDisabledPerSec"
-
-  private val valueFactory = (k: String) => new AuthorizerMetrics(Some(k))
 }
 
 class AuthorizerStats {
-  import AuthorizerStats._
+  private val stats = new Pool[String, AuthorizerMetrics]
 
-  private val stats = new Pool[String, AuthorizerMetrics](Some(valueFactory))
-  val allTopicsStats = new AuthorizerMetrics(None)
-
-  def topicStats(topic: String): AuthorizerMetrics = stats.getAndMaybePut(topic)
+  def topicStats(action: Action, name: String): AuthorizerMetrics = {
+    val topic = action.resourcePattern.name
+    if (stats.contains(topic)) {
+      stats.get(topic)
+    } else {
+      val authorizerMetric = new AuthorizerMetrics(action, name)
+      stats.put(topic, authorizerMetric)
+      authorizerMetric
+    }
+  }
 }
