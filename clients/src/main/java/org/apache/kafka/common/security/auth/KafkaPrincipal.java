@@ -53,7 +53,7 @@ public class KafkaPrincipal implements Principal {
     private boolean isRegex;
     private Pattern pattern = null;
     private volatile boolean tokenAuthenticated;
-    private String print;
+    private String principalStr;
 
     public KafkaPrincipal(String principalType, String name) {
         this.principalType = requireNonNull(principalType, "Principal type cannot be null");
@@ -66,7 +66,7 @@ public class KafkaPrincipal implements Principal {
                 this.isRegex = false;
             }
         }
-        this.print = this.principalType + ":" + this.name;
+        this.principalStr = this.principalType + ":" + this.name;
     }
 
     /**
@@ -84,7 +84,7 @@ public class KafkaPrincipal implements Principal {
 
     @Override
     public String toString() {
-        return print;
+        return principalStr;
     }
 
     @Override
