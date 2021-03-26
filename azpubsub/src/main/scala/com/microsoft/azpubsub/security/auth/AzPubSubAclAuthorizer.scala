@@ -18,7 +18,7 @@ import scala.jdk.CollectionConverters._
 /*
  * AzPubSub ACL Authorizer to handle the certificate & role based principal type
  */
-class AzPubSubAclAuthorizer extends AclAuthorizer with Logging with KafkaMetricsGroup {
+class AzPubSubAclAuthorizer extends AclAuthorizer with Logging {
   private[security] val aclAuthorizerLogger = Logger("kafka.authorizer.logger")
 
   private val authorizerStats = new AuthorizerStats
@@ -38,10 +38,12 @@ class AzPubSubAclAuthorizer extends AclAuthorizer with Logging with KafkaMetrics
 
   private def authorizeAction(requestContext: AuthorizableRequestContext, action: Action): AuthorizationResult = {
     val resource = action.resourcePattern
+    val sessionPrincipal = requestContext.principal
+
     if (resource.resourceType == TOPIC && authZConfig.isDisabled(resource.name)) {
       aclAuthorizerLogger.debug(s"AuthZ is disabled for resource: $resource")
-      authorizerStats.topicStats(action, "disabled").successRate.mark()
-      authorizerStats.topicStats(action, "disabled").disabledRate.mark()
+      authorizerStats.allStats(action, sessionPrincipal.toString).successRate.mark()
+      authorizerStats.allStats(action, sessionPrincipal.toString).disabledRate.mark()
       return AuthorizationResult.ALLOWED
     }
 
@@ -58,31 +60,27 @@ class AzPubSubAclAuthorizer extends AclAuthorizer with Logging with KafkaMetrics
       }
     }
 
-    val sessionPrincipal = requestContext.principal
     if (classOf[AzPubSubPrincipal] == sessionPrincipal.getClass) {
       val principal = sessionPrincipal.asInstanceOf[AzPubSubPrincipal]
       for (role <- principal.getRoles.asScala) {
         val claimPrincipal = new KafkaPrincipal(principal.getPrincipalType(), role)
         val claimRequestContext = getClaimRequestContext(requestContext, claimPrincipal)
         if (super.authorize(claimRequestContext, List(action).asJava).asScala.head == AuthorizationResult.ALLOWED) {
-          authorizerStats.topicStats(action, claimPrincipal.getName).successRate.mark()
+          authorizerStats.allStats(action, claimPrincipal.toString).successRate.mark()
           return AuthorizationResult.ALLOWED
         }
       }
     } else if (super.authorize(requestContext, List(action).asJava).asScala.head == AuthorizationResult.ALLOWED) {
-      authorizerStats.topicStats(action, sessionPrincipal.getName).successRate.mark()
+      authorizerStats.allStats(action, sessionPrincipal.toString).successRate.mark()
       return AuthorizationResult.ALLOWED
     }
 
-    authorizerStats.topicStats(action, sessionPrincipal.getName).failureRate.mark()
+    authorizerStats.allStats(action, sessionPrincipal.toString).failureRate.mark()
     return AuthorizationResult.DENIED
   }
 }
 
-class AuthorizerMetrics(action: Action, principal: String) extends KafkaMetricsGroup {
-  val tags: scala.collection.Map[String, String] = Map("topic" -> action.resourcePattern.name,
-    "resource-type" -> action.resourcePattern.resourceType.toString,
-    "operation" -> action.operation.toString, "principal" -> principal)
+class AuthorizerMetrics(tags: scala.collection.Map[String, String]) extends KafkaMetricsGroup {
 
   case class MeterWrapper(metricType: String, eventType: String) {
     @volatile private var lazyMeter: Meter = _
@@ -107,7 +105,7 @@ class AuthorizerMetrics(action: Action, principal: String) extends KafkaMetricsG
   }
 
   // an internal map for "lazy initialization" of certain metrics
-  private val metricTypeMap = new Pool[String, MeterWrapper]()
+  private val metricTypeMap = new Pool[String, MeterWrapper]
   metricTypeMap.putAll(Map(
     AuthorizerStats.SuccessPerSec -> MeterWrapper(AuthorizerStats.SuccessPerSec, "success"),
     AuthorizerStats.FailurePerSec -> MeterWrapper(AuthorizerStats.FailurePerSec, "failure"),
@@ -134,13 +132,20 @@ object AuthorizerStats {
 class AuthorizerStats {
   private val stats = new Pool[String, AuthorizerMetrics]
 
-  def topicStats(action: Action, name: String): AuthorizerMetrics = {
+  def allStats(action: Action, principal: String): AuthorizerMetrics = {
     val topic = action.resourcePattern.name
-    if (stats.contains(topic)) {
-      stats.get(topic)
+    val resourceType = action.resourcePattern.resourceType.toString
+    val operation = action.operation.toString
+
+    val tags: scala.collection.Map[String, String] = Map("topic" -> topic, "resource-type" -> resourceType,
+      "operation" -> operation, "principal" -> principal)
+
+    val key = topic + resourceType + operation + principal
+    if (stats.contains(key)) {
+      stats.get(key)
     } else {
-      val authorizerMetric = new AuthorizerMetrics(action, name)
-      stats.put(topic, authorizerMetric)
+      val authorizerMetric = new AuthorizerMetrics(tags)
+      stats.put(key, authorizerMetric)
       authorizerMetric
     }
   }

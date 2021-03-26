@@ -46,4 +46,9 @@ public class AzPubSubPrincipal extends KafkaPrincipal {
     public int hashCode() {
         return super.hashCode();
     }
+
+    @Override
+    public String toString() {
+        return getPrincipalType() + ":" + String.join(",", roles);
+    }
 }
