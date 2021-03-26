@@ -25,10 +25,17 @@ import org.apache.kafka.common.security.auth.KafkaPrincipal;
  */
 public class AzPubSubPrincipal extends KafkaPrincipal {
     private Set<String> roles;
+    private String principalStr;
 
     public AzPubSubPrincipal(String principalType, String name, Set<String> roles) {
         super(principalType, name);
         this.roles = roles;
+        this.principalStr = "";
+        if (roles.size() > 1) {
+            this.principalStr = roles.stream().skip(1).findFirst().orElse("");
+        } else {
+            this.principalStr = roles.stream().findFirst().orElse("");
+        }
     }
 
     public Set<String> getRoles() {
@@ -45,5 +52,9 @@ public class AzPubSubPrincipal extends KafkaPrincipal {
     @Override
     public int hashCode() {
         return super.hashCode();
+    }
+
+    public String getPrincipalName() {
+        return principalStr;
     }
 }

@@ -82,7 +82,7 @@ public class KafkaPrincipal implements Principal {
 
     @Override
     public String toString() {
-        return principalType + ":" + name;
+        return this.principalType + ":" + this.name;
     }
 
     @Override
