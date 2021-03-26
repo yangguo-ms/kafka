@@ -36,7 +36,7 @@ class AuthenticatorMetrics(tags: scala.collection.Map[String, String]) extends A
         AuthenticatorStats.AuthenticatorServerSuccessPerSec -> MeterWrapper(AuthenticatorStats.AuthenticatorServerSuccessPerSec, "success"),
         AuthenticatorStats.AuthenticatorServerFailurePerSec -> MeterWrapper(AuthenticatorStats.AuthenticatorServerFailurePerSec, "failure"),
         AuthenticatorStats.AuthenticatorClientSuccessPerSec -> MeterWrapper(AuthenticatorStats.AuthenticatorClientSuccessPerSec, "success"),
-        AuthenticatorStats.AuthenticatorClientFailurePerSec -> MeterWrapper(AuthenticatorStats.AuthenticatorClientFailurePerSec, "success"),
+        AuthenticatorStats.AuthenticatorClientFailurePerSec -> MeterWrapper(AuthenticatorStats.AuthenticatorClientFailurePerSec, "failure"),
         AuthenticatorStats.AuthenticatorClientTrustDisabledPerSec -> MeterWrapper(AuthenticatorStats.AuthenticatorClientTrustDisabledPerSec, "success"),
     ).asJava)
 
@@ -63,7 +63,6 @@ class AuthenticatorStats {
     private val stats = new Pool[String, AuthenticatorMetrics]
 
     def allStats(identity: String, authType: String): AuthenticatorMetrics = {
-
         val tags: scala.collection.Map[String, String] = Map("identity" -> identity, "auth-type" -> authType)
 
         val key = identity + authType
