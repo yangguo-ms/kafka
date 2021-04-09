@@ -92,6 +92,13 @@ for %%p in (api runtime file json tools) do (
 rem Classpath addition for release
 call :concat "%BASE_DIR%\libs\*"
 
+rem Include jni4net related libs
+IF ["%INCLUDE_JNI4NET_LIBS%"] NEQ [""] (
+    for %%i in ("%BASE_DIR%\jni4net-libs\*.jar") do (
+        call :concat "%%i"
+    )
+)
+
 rem Classpath addition for core
 for %%i in ("%BASE_DIR%\core\build\libs\kafka_%SCALA_BINARY_VERSION%*.jar") do (
 	call :concat "%%i"
