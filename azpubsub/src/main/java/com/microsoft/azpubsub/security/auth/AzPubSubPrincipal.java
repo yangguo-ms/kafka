@@ -30,7 +30,12 @@ public class AzPubSubPrincipal extends KafkaPrincipal {
     public AzPubSubPrincipal(String principalType, String name, Set<String> roles) {
         super(principalType, name);
         this.roles = roles;
-        this.principalStr = String.join("_", roles);
+        this.principalStr = "";
+        if (roles.size() > 1) {
+            this.principalStr = roles.stream().skip(1).findFirst().orElse("");
+        } else {
+            this.principalStr = roles.stream().findFirst().orElse("");
+        }
     }
 
     public Set<String> getRoles() {
