@@ -22,9 +22,7 @@ import java.io.IOException
 import java.util.Properties
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.{ConcurrentLinkedQueue, TimeUnit}
-
-import kafka.utils.{CommandDefaultOptions, CommandLineUtils}
-import kafka.utils.Logging
+import kafka.utils.{CommandDefaultOptions, CommandLineUtils, Exit, Logging}
 import org.apache.kafka.common.utils.Utils
 import org.apache.kafka.clients.{ApiVersions, ClientDnsLookup, ClientResponse, ClientUtils, CommonClientConfigs, Metadata, NetworkClient, NodeApiVersions}
 import org.apache.kafka.clients.consumer.internals.{ConsumerNetworkClient, RequestFuture}
@@ -66,6 +64,7 @@ object BrokerApiVersionsCommand {
       }
     }
     adminClient.close()
+    Exit.exit(0)
   }
 
   private def createAdminClient(opts: BrokerVersionCommandOptions): AdminClient = {

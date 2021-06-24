@@ -82,6 +82,7 @@ object PreferredReplicaLeaderElectionCommand extends Logging {
       preferredReplicaElectionCommand.electPreferredLeaders(partitionsForPreferredReplicaElection)
     } finally {
       preferredReplicaElectionCommand.close()
+      Exit.exit(0)
     }
   }
 
