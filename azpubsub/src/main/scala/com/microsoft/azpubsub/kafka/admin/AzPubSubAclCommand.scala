@@ -1,7 +1,8 @@
 package com.microsoft.azpubsub.kafka.admin
 import kafka.admin.AclCommand
-import kafka.admin.AclCommand.{AclCommandOptions, AdminClientService}
+import kafka.admin.AclCommand.{AclCommandOptions, AdminClientService, confirmAction, getPrincipals, getResourceFilter, getResourceFilterToAcls}
 import kafka.utils.{CommandLineUtils, Exit, Json, Logging}
+import org.apache.kafka.clients.admin.Admin
 import org.apache.kafka.common.acl.{AccessControlEntry, AclOperation, AclPermissionType}
 import org.apache.kafka.common.resource.{ResourcePattern, ResourcePatternFilter, ResourceType}
 import org.apache.kafka.common.security.auth.KafkaPrincipal
@@ -43,6 +44,34 @@ object AzPubSubAclCommand extends Logging {
 }
 
 class AzPubSubAdminClientService(opts: AzPubSubAclCommandOptions) extends AdminClientService(opts) {
+
+  private val Newline = scala.util.Properties.lineSeparator
+
+  override def removeAcls(): Unit = {
+    withAdminClient(opts) { adminClient =>
+      val filteredAclOperations = getFilteredAclOperations(adminClient, opts)
+      val producerAclOperations = GetProducerAclOperations()
+      val consumerAclOperations = GetConsumerAclOperations()
+
+      val filterToAcl = getResourceFilterToAcls(opts)
+
+      for ((filter, acls) <- filterToAcl) {
+        if (acls.isEmpty) {
+          if (confirmAction(opts, s"Are you sure you want to delete all ACLs for resource filter `$filter`? (y/n)"))
+            removeAcls(adminClient, acls, filter)
+        } else {
+          if ((opts.options.has(opts.producerOpt) && consumerAclOperations.subsetOf(filteredAclOperations))
+                  || (opts.options.has(opts.consumerOpt) && producerAclOperations.subsetOf(filteredAclOperations)))
+            removeAclWithDescribeOperation(acls)
+          if (confirmAction(opts, s"Are you sure you want to remove ACLs: $Newline ${acls.map("\t" + _).mkString(Newline)} $Newline from resource filter `$filter`? (y/n)")) {
+            removeAcls(adminClient, acls, filter)
+          }
+        }
+      }
+
+      listAcls()
+    }
+  }
 
   override def printAcls(filters: Set[ResourcePatternFilter], listPrincipals: Set[KafkaPrincipal], resourceToAcls: Map[ResourcePattern, Set[AccessControlEntry]]): Unit = {
     if (!opts.options.has(opts.outputAsProducerConsumerOpt)) {
@@ -169,6 +198,36 @@ class AzPubSubAdminClientService(opts: AzPubSubAclCommandOptions) extends AdminC
       }}
     })
     return producerConsumerGroupAclMap
+  }
+
+  def removeAclWithDescribeOperation(acls: Set[AccessControlEntry]): Set[AccessControlEntry] ={
+    val updatedAcls = mutable.Set[AccessControlEntry]()
+    updatedAcls += acls
+    acls.foreach(acl => {
+      if (acl.operation() == AclOperation.DESCRIBE)
+        updatedAcls -= acl
+    })
+    updatedAcls.toSet
+  }
+
+  def getFilteredAclOperations(adminClient: Admin, opts: AzPubSubAclCommandOptions): Set[AclOperation] ={
+    val aclOperations = mutable.Set[AclOperation]()
+
+    val filters = getResourceFilter(opts, dieIfNoResourceFound = false)
+    val listPrincipals = getPrincipals(opts, opts.listPrincipalsOpt)
+    val resourceToAcls = getAcls(adminClient, filters)
+
+    if (!listPrincipals.isEmpty) {
+      listPrincipals.foreach(principal => {
+        val filteredResourceToAcls = resourceToAcls.mapValues(acls =>
+          acls.filter(acl => principal.toString.equals(acl.principal) && acl.host() == "*" && acl.permissionType() == AclPermissionType.ALLOW)).filter(entry => entry._2.nonEmpty)
+        for ((_, filteredAcls) <- filteredResourceToAcls) {
+          filteredAcls.foreach(x => aclOperations.add(x.operation()))
+        }
+      })
+    }
+
+    aclOperations.toSet
   }
 }
 
