@@ -59,6 +59,8 @@ object ConsumerGroupCommand extends Logging {
 
     val consumerGroupService = new ConsumerGroupService(opts)
 
+    var exitCode = 0
+
     try {
       if (opts.options.has(opts.listOpt))
         consumerGroupService.listGroups().foreach(println(_))
@@ -80,8 +82,10 @@ object ConsumerGroupCommand extends Logging {
     } catch {
       case e: Throwable =>
         printError(s"Executing consumer group command failed due to ${e.getMessage}", Some(e))
+        exitCode = 1
     } finally {
       consumerGroupService.close()
+      Exit.exit(exitCode)
     }
   }
 

@@ -19,10 +19,9 @@ package kafka.admin
 
 import java.io.PrintStream
 import java.util.Properties
-
 import kafka.common.AdminCommandFailedException
 import kafka.utils.json.JsonValue
-import kafka.utils.{CommandDefaultOptions, CommandLineUtils, CoreUtils, Json}
+import kafka.utils.{CommandDefaultOptions, CommandLineUtils, CoreUtils, Exit, Json}
 import org.apache.kafka.clients.admin.RecordsToDelete
 import org.apache.kafka.clients.{CommonClientConfigs, admin}
 import org.apache.kafka.common.TopicPartition
@@ -98,6 +97,7 @@ object DeleteRecordsCommand {
     }}
 
     adminClient.close()
+    Exit.exit(0)
   }
 
   private def createAdminClient(opts: DeleteRecordsCommandOptions): admin.Admin = {
