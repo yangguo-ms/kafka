@@ -86,7 +86,7 @@ object AclCommand extends Logging {
       case e: Throwable =>
         println(s"Error while executing ACL command: ${e.getMessage}")
         println(Utils.stackTrace(e))
-        exitCode = 1;
+        exitCode = 1
     } finally {
       Exit.exit(exitCode)
     }

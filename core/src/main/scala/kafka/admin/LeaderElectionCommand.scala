@@ -80,11 +80,15 @@ object LeaderElectionCommand extends Logging {
       JAdminClient.create(props)
     }
 
+    var exitCode = 0
+
     try {
       electLeaders(adminClient, electionType, topicPartitions)
+    } catch {
+      case e: Exception => exitCode = 1
     } finally {
       adminClient.close()
-      Exit.exit(0)
+      Exit.exit(exitCode)
     }
   }
 

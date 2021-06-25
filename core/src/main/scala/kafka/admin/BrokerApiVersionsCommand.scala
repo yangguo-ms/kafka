@@ -53,6 +53,7 @@ object BrokerApiVersionsCommand {
   }
 
   def execute(args: Array[String], out: PrintStream): Unit = {
+    var exitCode = 0
     val opts = new BrokerVersionCommandOptions(args)
     val adminClient = createAdminClient(opts)
     adminClient.awaitBrokers()
@@ -60,11 +61,13 @@ object BrokerApiVersionsCommand {
     brokerMap.foreach { case (broker, versionInfoOrError) =>
       versionInfoOrError match {
         case Success(v) => out.print(s"${broker} -> ${v.toString(true)}\n")
-        case Failure(v) => out.print(s"${broker} -> ERROR: ${v}\n")
+        case Failure(v) =>
+          out.print(s"${broker} -> ERROR: ${v}\n")
+          exitCode = 1
       }
     }
     adminClient.close()
-    Exit.exit(0)
+    Exit.exit(exitCode)
   }
 
   private def createAdminClient(opts: BrokerVersionCommandOptions): AdminClient = {

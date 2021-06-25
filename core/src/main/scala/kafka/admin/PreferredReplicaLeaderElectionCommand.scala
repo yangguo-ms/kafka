@@ -76,11 +76,15 @@ object PreferredReplicaLeaderElectionCommand extends Logging {
         new AdminClientCommand(adminProps)
     }
 
+    var exitCode = 0
+
     try {
       preferredReplicaElectionCommand.electPreferredLeaders(partitionsForPreferredReplicaElection)
+    } catch {
+      case e: Exception => exitCode = 1
     } finally {
       preferredReplicaElectionCommand.close()
-      Exit.exit(0)
+      Exit.exit(exitCode)
     }
   }
 
