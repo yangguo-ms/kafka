@@ -89,15 +89,19 @@ object DeleteRecordsCommand {
     val deleteRecordsResult = adminClient.deleteRecords(recordsToDelete)
     out.println("Records delete operation completed:")
 
+    var exitCode = 0
+
     deleteRecordsResult.lowWatermarks.forEach { (tp, partitionResult) =>
       try out.println(s"partition: $tp\tlow_watermark: ${partitionResult.get.lowWatermark}")
       catch {
-        case e: Exception => out.println(s"partition: $tp\terror: ${e.getMessage}")
+        case e: Exception =>
+          out.println(s"partition: $tp\terror: ${e.getMessage}")
+          exitCode = 1
       }
     }
 
     adminClient.close()
-    Exit.exit(0)
+    Exit.exit(exitCode)
   }
 
   private def createAdminClient(opts: DeleteRecordsCommandOptions): Admin = {
