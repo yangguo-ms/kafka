@@ -73,7 +73,7 @@ object AclCommand extends Logging {
       }
     }
 
-    var exitCode = 0;
+    var exitCode = 0
 
     try {
       if (opts.options.has(opts.addOpt))
