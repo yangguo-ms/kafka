@@ -81,7 +81,7 @@ object PreferredReplicaLeaderElectionCommand extends Logging {
     try {
       preferredReplicaElectionCommand.electPreferredLeaders(partitionsForPreferredReplicaElection)
     } catch {
-      case e: Exception => exitCode = 1
+      case e: Throwable => exitCode = 1
     } finally {
       preferredReplicaElectionCommand.close()
       Exit.exit(exitCode)

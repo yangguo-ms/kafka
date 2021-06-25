@@ -85,7 +85,7 @@ object LeaderElectionCommand extends Logging {
     try {
       electLeaders(adminClient, electionType, topicPartitions)
     } catch {
-      case e: Exception => exitCode = 1
+      case e: Throwable => exitCode = 1
     } finally {
       adminClient.close()
       Exit.exit(exitCode)
