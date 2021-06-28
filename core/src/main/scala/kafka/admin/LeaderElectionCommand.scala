@@ -20,11 +20,7 @@ import java.util.Properties
 import java.util.concurrent.ExecutionException
 import joptsimple.util.EnumConverter
 import kafka.common.AdminCommandFailedException
-import kafka.utils.CommandDefaultOptions
-import kafka.utils.CommandLineUtils
-import kafka.utils.CoreUtils
-import kafka.utils.Json
-import kafka.utils.Logging
+import kafka.utils.{CommandDefaultOptions, CommandLineUtils, CoreUtils, Exit, Json, Logging}
 import org.apache.kafka.clients.admin.{Admin, AdminClientConfig, AdminClient => JAdminClient}
 import org.apache.kafka.common.ElectionType
 import org.apache.kafka.common.TopicPartition
@@ -84,10 +80,15 @@ object LeaderElectionCommand extends Logging {
       JAdminClient.create(props)
     }
 
+    var exitCode = 0
+
     try {
       electLeaders(adminClient, electionType, topicPartitions)
+    } catch {
+      case e: Throwable => exitCode = 1
     } finally {
       adminClient.close()
+      Exit.exit(exitCode)
     }
   }
 
