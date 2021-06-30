@@ -1,8 +1,7 @@
 package com.microsoft.azpubsub.kafka.admin
 import kafka.admin.AclCommand
-import kafka.admin.AclCommand.{AclCommandOptions, AdminClientService, confirmAction, getPrincipals, getResourceFilter, getResourceFilterToAcls}
+import kafka.admin.AclCommand.{AclCommandOptions, AdminClientService, confirmAction, getResourceFilter, getResourceFilterToAcls}
 import kafka.utils.{CommandLineUtils, Exit, Json, Logging}
-import org.apache.kafka.clients.admin.Admin
 import org.apache.kafka.common.acl.{AccessControlEntry, AclOperation, AclPermissionType}
 import org.apache.kafka.common.resource.{ResourcePattern, ResourcePatternFilter, ResourceType}
 import org.apache.kafka.common.security.auth.KafkaPrincipal
@@ -49,22 +48,20 @@ class AzPubSubAdminClientService(opts: AzPubSubAclCommandOptions) extends AdminC
 
   override def removeAcls(): Unit = {
     withAdminClient(opts) { adminClient =>
-      val filteredAclOperations = getFilteredAclOperations(adminClient, opts)
-      val producerAclOperations = GetProducerAclOperations()
-      val consumerAclOperations = GetConsumerAclOperations()
+      val filters = getResourceFilter(opts, dieIfNoResourceFound = false)
+      val resourceToAcls = getAcls(adminClient, filters)
 
       val filterToAcl = getResourceFilterToAcls(opts)
 
       for ((filter, acls) <- filterToAcl) {
+        val filteredPrincipalAclOperationsMap = getPrincipalAclOperationsMap(resourceToAcls, filter)
         if (acls.isEmpty) {
           if (confirmAction(opts, s"Are you sure you want to delete all ACLs for resource filter `$filter`? (y/n)"))
             removeAcls(adminClient, acls, filter)
         } else {
-          if ((opts.options.has(opts.producerOpt) && consumerAclOperations.subsetOf(filteredAclOperations))
-                  || (opts.options.has(opts.consumerOpt) && producerAclOperations.subsetOf(filteredAclOperations)))
-            removeAclWithDescribeOperation(acls)
-          if (confirmAction(opts, s"Are you sure you want to remove ACLs: $Newline ${acls.map("\t" + _).mkString(Newline)} $Newline from resource filter `$filter`? (y/n)")) {
-            removeAcls(adminClient, acls, filter)
+          val updatedAcls = removeAclWithDescribeOperation(opts, acls, filteredPrincipalAclOperationsMap)
+          if (confirmAction(opts, s"Are you sure you want to remove ACLs: $Newline ${updatedAcls.map("\t" + _).mkString(Newline)} $Newline from resource filter `$filter`? (y/n)")) {
+            removeAcls(adminClient, updatedAcls, filter)
           }
         }
       }
@@ -86,7 +83,7 @@ class AzPubSubAdminClientService(opts: AzPubSubAclCommandOptions) extends AdminC
       val allPrincipalsFilteredResourceToAcls = resourceToAcls.mapValues(acls =>
         acls.filterNot(acl => listPrincipals.forall(
           principal => !principal.toString.equals(acl.principal)))).filter(entry => entry._2.nonEmpty)
-      var producerConsumerAclMap = aclToProducerConsumerMapping(allPrincipalsFilteredResourceToAcls)
+      val producerConsumerAclMap = aclToProducerConsumerMapping(allPrincipalsFilteredResourceToAcls)
       outputAsJson(producerConsumerAclMap)
     }
   }
@@ -109,9 +106,9 @@ class AzPubSubAdminClientService(opts: AzPubSubAclCommandOptions) extends AdminC
   }
 
   def GetProducerAclOperations(): Set[AclOperation] = {
-    var dummyArgs = Array[String]("--bootstrap-server", "localhost:9092", "--add", "--allow-principal", "User:Bob", "--producer", "--topic", "Test-topic")
-    var dummyOpt = new AclCommandOptions(dummyArgs)
-    var resourceMap = AclCommand.getProducerResourceFilterToAcls(dummyOpt)
+    val dummyArgs = Array[String]("--bootstrap-server", "localhost:9092", "--add", "--allow-principal", "User:Bob", "--producer", "--topic", "Test-topic")
+    val dummyOpt = new AclCommandOptions(dummyArgs)
+    val resourceMap = AclCommand.getProducerResourceFilterToAcls(dummyOpt)
     for ((key, value) <- resourceMap) {
       if (key.resourceType() == ResourceType.TOPIC) {
         var aclOperationList = Set[AclOperation]()
@@ -119,13 +116,13 @@ class AzPubSubAdminClientService(opts: AzPubSubAclCommandOptions) extends AdminC
         return aclOperationList
       }
     }
-    return Set[AclOperation]()
+    Set[AclOperation]()
   }
 
   def GetConsumerAclOperations(): Set[AclOperation] = {
-    var dummyArgs = Array[String]("--bootstrap-server", "localhost:9092", "--add", "--allow-principal", "User:Bob", "--consumer", "--topic", "Test-topic", "--group", "Test-group")
-    var dummyOpt = new AclCommandOptions(dummyArgs)
-    var resourceMap = AclCommand.getConsumerResourceFilterToAcls(dummyOpt)
+    val dummyArgs = Array[String]("--bootstrap-server", "localhost:9092", "--add", "--allow-principal", "User:Bob", "--consumer", "--topic", "Test-topic", "--group", "Test-group")
+    val dummyOpt = new AclCommandOptions(dummyArgs)
+    val resourceMap = AclCommand.getConsumerResourceFilterToAcls(dummyOpt)
     for ((key, value) <- resourceMap) {
       if (key.resourceType() == ResourceType.TOPIC) {
         var aclOperationList = Set[AclOperation]()
@@ -133,13 +130,13 @@ class AzPubSubAdminClientService(opts: AzPubSubAclCommandOptions) extends AdminC
         return aclOperationList
       }
     }
-    return Set[AclOperation]()
+    Set[AclOperation]()
   }
 
   def GetGroupAclOperations(): Set[AclOperation] = {
-    var dummyArgs = Array[String]("--bootstrap-server", "localhost:9092", "--add", "--allow-principal", "User:Bob", "--consumer", "--topic", "Test-topic", "--group", "Test-group")
-    var dummyOpt = new AclCommandOptions(dummyArgs)
-    var resourceMap = AclCommand.getConsumerResourceFilterToAcls(dummyOpt)
+    val dummyArgs = Array[String]("--bootstrap-server", "localhost:9092", "--add", "--allow-principal", "User:Bob", "--consumer", "--topic", "Test-topic", "--group", "Test-group")
+    val dummyOpt = new AclCommandOptions(dummyArgs)
+    val resourceMap = AclCommand.getConsumerResourceFilterToAcls(dummyOpt)
     for ((key, value) <- resourceMap) {
       if (key.resourceType() == ResourceType.GROUP) {
         var aclOperationList = Set[AclOperation]()
@@ -147,14 +144,14 @@ class AzPubSubAdminClientService(opts: AzPubSubAclCommandOptions) extends AdminC
         return aclOperationList
       }
     }
-    return Set[AclOperation]()
+    Set[AclOperation]()
   }
 
   def aclToProducerConsumerMapping(resourceToAcls:Map[ResourcePattern,Set[AccessControlEntry]]):mutable.Map[ResourcePattern,mutable.Set[AzPubSubAccessControlEntry]] = {
     var producerConsumerGroupAclMap = mutable.Map[ResourcePattern, mutable.Set[AzPubSubAccessControlEntry]]()
-    var producerAclOperations = GetProducerAclOperations()
-    var consumerAclOperations = GetConsumerAclOperations()
-    var groupAclOperations = GetGroupAclOperations()
+    val producerAclOperations = GetProducerAclOperations()
+    val consumerAclOperations = GetConsumerAclOperations()
+    val groupAclOperations = GetGroupAclOperations()
 
     resourceToAcls.foreach(resource => {
       producerConsumerGroupAclMap += (resource._1 -> mutable.Set[AzPubSubAccessControlEntry]())
@@ -169,65 +166,73 @@ class AzPubSubAdminClientService(opts: AzPubSubAclCommandOptions) extends AdminC
       })
       principalAclMap.foreach { case (principal, acls) => {
         var strayAcls = acls
-        var filteredAclOperations = mutable.Set[AclOperation]()
-        var filteredAcls = acls.filter(x => (x.host() == "*" && x.permissionType() == AclPermissionType.ALLOW))
+        val filteredAclOperations = mutable.Set[AclOperation]()
+        val filteredAcls = acls.filter(x => (x.host() == "*" && x.permissionType() == AclPermissionType.ALLOW))
         filteredAcls.foreach(x => filteredAclOperations.add(x.operation()))
         if (resource._1.resourceType() == ResourceType.TOPIC) {
           if (producerAclOperations.subsetOf(filteredAclOperations)) {
             strayAcls = strayAcls.filterNot(x => (x.host() == "*" && x.permissionType() == AclPermissionType.ALLOW && producerAclOperations.contains(x.operation())))
-            var modifiedAcl = new AzPubSubAccessControlEntry(principal, "*", AclOperation.ANY, AclPermissionType.ALLOW, "PRODUCER")
+            val modifiedAcl = new AzPubSubAccessControlEntry(principal, "*", AclOperation.ANY, AclPermissionType.ALLOW, "PRODUCER")
             producerConsumerGroupAclMap(resource._1).add(modifiedAcl)
           }
           if (consumerAclOperations.subsetOf(filteredAclOperations)) {
             strayAcls = strayAcls.filterNot(x => (x.host() == "*" && x.permissionType() == AclPermissionType.ALLOW && consumerAclOperations.contains(x.operation())))
-            var modifiedAcl = new AzPubSubAccessControlEntry(principal, "*", AclOperation.ANY, AclPermissionType.ALLOW, "CONSUMER")
+            val modifiedAcl = new AzPubSubAccessControlEntry(principal, "*", AclOperation.ANY, AclPermissionType.ALLOW, "CONSUMER")
             producerConsumerGroupAclMap(resource._1).add(modifiedAcl)
           }
         }
         else if (resource._1.resourceType() == ResourceType.GROUP) {
           if (groupAclOperations.subsetOf(filteredAclOperations)) {
             strayAcls = strayAcls.filterNot(x => (x.host() == "*" && x.permissionType() == AclPermissionType.ALLOW && groupAclOperations.contains(x.operation())))
-            var modifiedAcl = new AzPubSubAccessControlEntry(principal, "*", AclOperation.ANY, AclPermissionType.ALLOW, "GROUP")
+            val modifiedAcl = new AzPubSubAccessControlEntry(principal, "*", AclOperation.ANY, AclPermissionType.ALLOW, "GROUP")
             producerConsumerGroupAclMap(resource._1).add(modifiedAcl)
           }
         }
         strayAcls.foreach(acl => {
-          var modifiedAcl = new AzPubSubAccessControlEntry(principal, acl.host(), acl.operation(), acl.permissionType(), "NONE")
+          val modifiedAcl = new AzPubSubAccessControlEntry(principal, acl.host(), acl.operation(), acl.permissionType(), "NONE")
           producerConsumerGroupAclMap(resource._1).add(modifiedAcl)
         })
       }}
     })
-    return producerConsumerGroupAclMap
+    producerConsumerGroupAclMap
   }
 
-  def removeAclWithDescribeOperation(acls: Set[AccessControlEntry]): Set[AccessControlEntry] ={
-    val updatedAcls = mutable.Set[AccessControlEntry]()
-    updatedAcls += acls
+  def removeAclWithDescribeOperation(opt: AzPubSubAclCommandOptions, acls: Set[AccessControlEntry], principalAclOperationsMap: Map[String, Set[AclOperation]]): Set[AccessControlEntry] ={
+    val producerAclOperations = GetProducerAclOperations()
+    val consumerAclOperations = GetConsumerAclOperations()
+
+    var updatedAcls = acls
     acls.foreach(acl => {
-      if (acl.operation() == AclOperation.DESCRIBE)
-        updatedAcls -= acl
+      if (acl.operation() == AclOperation.DESCRIBE) {
+        if ((opt.options.has(opt.producerOpt) && consumerAclOperations.subsetOf(principalAclOperationsMap(acl.principal())))
+                || (opt.options.has(opt.consumerOpt) && producerAclOperations.subsetOf(principalAclOperationsMap(acl.principal())))) {
+          updatedAcls -= acl
+        }
+      }
     })
-    updatedAcls.toSet
+
+    updatedAcls
   }
 
-  def getFilteredAclOperations(adminClient: Admin, opts: AzPubSubAclCommandOptions): Set[AclOperation] ={
-    val aclOperations = mutable.Set[AclOperation]()
+  def getPrincipalAclOperationsMap(resourceToAcls: Map[ResourcePattern, Set[AccessControlEntry]], filter: ResourcePatternFilter): Map[String, Set[AclOperation]] ={
+    val principalAclOperationsMap = mutable.Map[String, Set[AclOperation]]()
 
-    val filters = getResourceFilter(opts, dieIfNoResourceFound = false)
-    val listPrincipals = getPrincipals(opts, opts.listPrincipalsOpt)
-    val resourceToAcls = getAcls(adminClient, filters)
+    resourceToAcls.foreach(resource => {
+      if (resource._1.name() == filter.name() && resource._1.resourceType() == filter.resourceType() && resource._1.patternType() == filter.patternType()) {
+        resource._2.foreach(acl => {
+          if (acl.host() == "*" && acl.permissionType() == AclPermissionType.ALLOW) {
+            if (principalAclOperationsMap.contains(acl.principal())) {
+              principalAclOperationsMap(acl.principal()) += acl.operation()
+            }
+            else {
+              principalAclOperationsMap += (acl.principal() -> Set(acl.operation()))
+            }
+          }
+        })
+      }
+    })
 
-    if (!listPrincipals.isEmpty) {
-      listPrincipals.foreach(principal => {
-        val filteredResourceToAcls = resourceToAcls.mapValues(acls =>
-          acls.filter(acl => principal.toString.equals(acl.principal) && acl.host() == "*" && acl.permissionType() == AclPermissionType.ALLOW)).filter(entry => entry._2.nonEmpty)
-        for ((_, filteredAcls) <- filteredResourceToAcls) {
-          filteredAcls.foreach(x => aclOperations.add(x.operation()))
-        }
-      })
-    }
-
-    aclOperations.toSet
+    principalAclOperationsMap.toMap
   }
 }
 
