@@ -59,7 +59,7 @@ class AzPubSubAdminClientService(opts: AzPubSubAclCommandOptions) extends AdminC
           if (confirmAction(opts, s"Are you sure you want to delete all ACLs for resource filter `$filter`? (y/n)"))
             removeAcls(adminClient, acls, filter)
         } else {
-          val updatedAcls = removeAclWithDescribeOperation(opts, acls, filteredPrincipalAclOperationsMap)
+          val updatedAcls = dropAclsWithSharedOperation(opts, acls, filteredPrincipalAclOperationsMap)
           if (confirmAction(opts, s"Are you sure you want to remove ACLs: $Newline ${updatedAcls.map("\t" + _).mkString(Newline)} $Newline from resource filter `$filter`? (y/n)")) {
             removeAcls(adminClient, updatedAcls, filter)
           }
@@ -197,7 +197,7 @@ class AzPubSubAdminClientService(opts: AzPubSubAclCommandOptions) extends AdminC
     producerConsumerGroupAclMap
   }
 
-  def removeAclWithDescribeOperation(opt: AzPubSubAclCommandOptions, acls: Set[AccessControlEntry], principalAclOperationsMap: Map[String, Set[AclOperation]]): Set[AccessControlEntry] ={
+  def dropAclsWithSharedOperation(opt: AzPubSubAclCommandOptions, acls: Set[AccessControlEntry], principalAclOperationsMap: Map[String, Set[AclOperation]]): Set[AccessControlEntry] ={
     val producerAclOperations = GetProducerAclOperations()
     val consumerAclOperations = GetConsumerAclOperations()
 
